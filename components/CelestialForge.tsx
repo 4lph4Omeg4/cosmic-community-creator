@@ -4,16 +4,6 @@ import { generateImageWithImagen } from '../services/geminiService';
 import { XIcon, SparklesIcon } from './Icons';
 import { StarSystem } from '../types';
 
-declare global {
-    interface AIStudio {
-        hasSelectedApiKey: () => Promise<boolean>;
-        openSelectKey: () => Promise<void>;
-    }
-    interface Window {
-        aistudio?: AIStudio;
-    }
-}
-
 interface CelestialForgeProps {
     initialPrompt?: string;
     contextStar: StarSystem | null;

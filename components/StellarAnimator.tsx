@@ -4,18 +4,6 @@ import { initiateVideoGeneration, pollVideoOperation } from '../services/geminiS
 import { XIcon, FilmStarIcon } from './Icons';
 import { StarSystem } from '../types';
 
-// FIX: Corrected the global type declaration for `window.aistudio` to use a named `AIStudio` interface. This resolves the "Subsequent property declarations must have the same type" error by making the type declaration consistent across the application.
-// Extend the Window interface to include aistudio for TypeScript
-declare global {
-    interface AIStudio {
-        hasSelectedApiKey: () => Promise<boolean>;
-        openSelectKey: () => Promise<void>;
-    }
-    interface Window {
-        aistudio?: AIStudio;
-    }
-}
-
 interface StellarAnimatorProps {
     contextStar: StarSystem | null;
     onClose: () => void;
