@@ -15,4 +15,6 @@ export interface StarSystem {
   lore: string;
   details: string;
   image: string;
+  images?: string[]; // Multiple generated images
+  video?: string; // Generated video URL
 }

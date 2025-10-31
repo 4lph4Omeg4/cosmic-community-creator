@@ -6,6 +6,7 @@ import { StarSystem } from '../types';
 
 interface StellarAnimatorProps {
     contextStar: StarSystem | null;
+    onLinkVideo?: (videoUrl: string) => void;
     onClose: () => void;
 }
 
@@ -20,7 +21,7 @@ const loadingMessages = [
     "The animation is almost complete...",
 ];
 
-const StellarAnimator: React.FC<StellarAnimatorProps> = ({ contextStar, onClose }) => {
+const StellarAnimator: React.FC<StellarAnimatorProps> = ({ contextStar, onLinkVideo, onClose }) => {
     const [sourceFile, setSourceFile] = useState<File | null>(null);
     const [sourcePreview, setSourcePreview] = useState<string | null>(null);
     const [prompt, setPrompt] = useState<string>('');
@@ -87,8 +88,13 @@ const StellarAnimator: React.FC<StellarAnimatorProps> = ({ contextStar, onClose 
                         if (uri) {
                             const videoResponse = await fetch(`${uri}&key=${process.env.API_KEY}`);
                             const videoBlob = await videoResponse.blob();
-                            setVideoUrl(URL.createObjectURL(videoBlob));
+                            const blobUrl = URL.createObjectURL(videoBlob);
+                            setVideoUrl(blobUrl);
                             setStatus('success');
+                            // Automatically link video to star if callback provided
+                            if (onLinkVideo) {
+                                onLinkVideo(blobUrl);
+                            }
                         } else {
                            throw new Error(updatedOp.error?.message || "Generation finished but no video was found.");
                         }
