@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { StarSystem, ActiveChamber } from '../types';
 import Portal from './Portal';
@@ -80,6 +80,7 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
     const [activeChamber, setActiveChamber] = useState<ActiveChamber>('none');
     const [contextStar, setContextStar] = useState<StarSystem | null>(null);
     const [chamberInitialPrompt, setChamberInitialPrompt] = useState('');
+    const contextStarIdRef = useRef<string | null>(null);
     
     const storageKey = `cosmic-creator-images-${user}`;
     const storageVideoKey = `cosmic-creator-videos-${user}`;
@@ -128,36 +129,58 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
 
     const handleBackToPortal = () => {
         setSelectedStar(null);
+        // Don't reset contextStar immediately - keep it for potential media linking
+        // It will be reset when opening a new star or chamber
+        // Also keep the ref for fallback lookup
     };
 
     const handleOpenChamber = (chamber: ActiveChamber) => {
         setActiveChamber(chamber);
-        setContextStar(null); 
-        setChamberInitialPrompt('');
+        // Don't reset contextStar here - it should be set by handleGenerateVision or handleAnimateVision
+        // Only reset if opening a chamber that doesn't need a context star
+        if (chamber === 'vision-weaver') {
+            setContextStar(null);
+            setChamberInitialPrompt('');
+        }
     };
     
     const handleCloseChamber = () => {
         setActiveChamber('none');
-        setContextStar(null);
+        // Keep contextStar in case we need to link media after closing
+        // It will be reset when opening a new star or chamber
         setChamberInitialPrompt('');
     };
 
     const handleGenerateVision = (star: StarSystem) => {
+        console.log('Generating vision for star:', star.id, star.label);
         setContextStar(star);
+        contextStarIdRef.current = star.id;
         setChamberInitialPrompt(`A vision of a being from the star system ${star.label}, a place known as "${star.lore}". The being embodies the concepts of: ${star.details}`);
         setActiveChamber('celestial-forge');
     };
     
     const handleAnimateVision = (star: StarSystem) => {
+        console.log('Animating vision for star:', star.id, star.label);
         setContextStar(star);
+        contextStarIdRef.current = star.id;
         setActiveChamber('stellar-animator');
     };
 
     const handleLinkImageToStar = (newImage: string) => {
-        if (contextStar) {
+        // Try multiple sources to find the target star
+        let targetStar = contextStar || selectedStar;
+        
+        // If still no star, try to find it by ID from ref
+        if (!targetStar && contextStarIdRef.current) {
+            targetStar = starSystems.find(s => s.id === contextStarIdRef.current) || null;
+        }
+        
+        if (targetStar) {
+            console.log('Linking image to star:', targetStar.id, targetStar.label);
+            
             // Save the new image to the array of images for this star
             const savedImages = JSON.parse(localStorage.getItem(storageKey) || '{}');
-            const existingImages = savedImages[contextStar.id] || [];
+            const existingImages = savedImages[targetStar.id] || [];
             const imagesArray = Array.isArray(existingImages) ? existingImages : (existingImages ? [existingImages] : []);
             
             // Add new image if it doesn't already exist
@@ -165,12 +188,12 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
                 imagesArray.push(newImage);
             }
             
-            savedImages[contextStar.id] = imagesArray;
+            savedImages[targetStar.id] = imagesArray;
             localStorage.setItem(storageKey, JSON.stringify(savedImages));
 
             // Update the state for immediate UI feedback
             const updatedSystems = starSystems.map(s => {
-                if (s.id === contextStar.id) {
+                if (s.id === targetStar.id) {
                     return {
                         ...s,
                         images: imagesArray,
@@ -182,34 +205,48 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
             setStarSystems(updatedSystems);
 
             // Update the selected star view if it's currently open
-            if (selectedStar && selectedStar.id === contextStar.id) {
+            if (selectedStar && selectedStar.id === targetStar.id) {
                 setSelectedStar(prevStar => prevStar ? {
                     ...prevStar,
                     images: imagesArray,
                     image: imagesArray[0]
                 } : null);
             }
+        } else {
+            console.error('No target star found for linking image');
         }
         handleCloseChamber();
     };
 
     const handleLinkVideoToStar = (videoUrl: string) => {
-        if (contextStar) {
+        // Try multiple sources to find the target star
+        let targetStar = contextStar || selectedStar;
+        
+        // If still no star, try to find it by ID from ref
+        if (!targetStar && contextStarIdRef.current) {
+            targetStar = starSystems.find(s => s.id === contextStarIdRef.current) || null;
+        }
+        
+        if (targetStar) {
+            console.log('Linking video to star:', targetStar.id, targetStar.label);
+            
             // Save the video to local storage
             const savedVideos = JSON.parse(localStorage.getItem(storageVideoKey) || '{}');
-            savedVideos[contextStar.id] = videoUrl;
+            savedVideos[targetStar.id] = videoUrl;
             localStorage.setItem(storageVideoKey, JSON.stringify(savedVideos));
 
             // Update the state for immediate UI feedback
             const updatedSystems = starSystems.map(s =>
-                s.id === contextStar.id ? { ...s, video: videoUrl } : s
+                s.id === targetStar.id ? { ...s, video: videoUrl } : s
             );
             setStarSystems(updatedSystems);
 
             // Update the selected star view if it's currently open
-            if (selectedStar && selectedStar.id === contextStar.id) {
+            if (selectedStar && selectedStar.id === targetStar.id) {
                 setSelectedStar(prevStar => prevStar ? { ...prevStar, video: videoUrl } : null);
             }
+        } else {
+            console.error('No target star found for linking video');
         }
         handleCloseChamber();
     };

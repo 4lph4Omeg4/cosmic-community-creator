@@ -92,6 +92,7 @@ const CelestialForge: React.FC<CelestialForgeProps> = ({ initialPrompt = '', con
     
     const handleLinkVision = () => {
         if (generatedImage && onLinkImage) {
+            console.log('Linking vision, contextStar:', contextStar?.id, contextStar?.label);
             onLinkImage(generatedImage);
         }
     };
