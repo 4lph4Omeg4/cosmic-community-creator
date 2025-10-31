@@ -27,9 +27,14 @@ const CelestialForge: React.FC<CelestialForgeProps> = ({ initialPrompt = '', con
 
     useEffect(() => {
         const checkKey = async () => {
+            // Check if running in AI Studio
             if (window.aistudio?.hasSelectedApiKey) {
                 const keySelected = await window.aistudio.hasSelectedApiKey();
                 setHasApiKey(keySelected);
+            } else {
+                // Running locally - check if API key is in environment
+                const hasEnvKey = !!process.env.API_KEY && process.env.API_KEY !== 'undefined';
+                setHasApiKey(hasEnvKey);
             }
         };
         checkKey();
@@ -37,8 +42,12 @@ const CelestialForge: React.FC<CelestialForgeProps> = ({ initialPrompt = '', con
 
     const handleSelectKey = async () => {
         if (window.aistudio?.openSelectKey) {
+            // Running in AI Studio
             await window.aistudio.openSelectKey();
             setHasApiKey(true);
+        } else {
+            // Running locally - show message about environment variable
+            setError("Please set GEMINI_API_KEY in your .env.local or docker.env file and restart the dev server.");
         }
     };
 
@@ -48,8 +57,15 @@ const CelestialForge: React.FC<CelestialForgeProps> = ({ initialPrompt = '', con
             return;
         }
 
-        const keySelected = await window.aistudio?.hasSelectedApiKey();
-        if (!keySelected) {
+        // Check for API key (AI Studio or environment)
+        let hasKey = false;
+        if (window.aistudio?.hasSelectedApiKey) {
+            hasKey = await window.aistudio.hasSelectedApiKey();
+        } else {
+            hasKey = !!process.env.API_KEY && process.env.API_KEY !== 'undefined';
+        }
+        
+        if (!hasKey) {
             setHasApiKey(false);
             setError("An API key is required for image generation.");
             return;
