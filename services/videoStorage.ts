@@ -30,6 +30,9 @@ export const videoStorage: VideoStorage = {
             
             if (error) {
                 console.error('Error uploading video to Supabase:', error);
+                if (error.message?.includes('row-level security') || error.message?.includes('violates')) {
+                    throw new Error('Storage bucket is not configured. Please check SUPABASE_SETUP.md for instructions on setting up RLS policies.');
+                }
                 throw error;
             }
             
