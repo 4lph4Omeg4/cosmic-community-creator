@@ -29,6 +29,7 @@ const StellarAnimator: React.FC<StellarAnimatorProps> = ({ contextStar, onLinkVi
     const [status, setStatus] = useState<GenerationStatus>('idle');
     const [error, setError] = useState<string>('');
     const [videoUrl, setVideoUrl] = useState<string | null>(null);
+    const [videoBase64, setVideoBase64] = useState<string | null>(null); // Store base64 separately
     const [hasApiKey, setHasApiKey] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState(loadingMessages[0]);
 
@@ -93,6 +94,9 @@ const StellarAnimator: React.FC<StellarAnimatorProps> = ({ contextStar, onLinkVi
                             const reader = new FileReader();
                             reader.onloadend = () => {
                                 const base64Video = reader.result as string;
+                                // Store base64 separately for storage
+                                setVideoBase64(base64Video);
+                                // Create blob URL for immediate display
                                 const blobUrl = URL.createObjectURL(videoBlob);
                                 setVideoUrl(blobUrl);
                                 setStatus('success');
@@ -115,11 +119,10 @@ const StellarAnimator: React.FC<StellarAnimatorProps> = ({ contextStar, onLinkVi
                                 // Fallback to blob URL if base64 conversion fails
                                 const blobUrl = URL.createObjectURL(videoBlob);
                                 setVideoUrl(blobUrl);
+                                setVideoBase64(null); // No base64 available
                                 setStatus('success');
-                                console.log('Using blob URL fallback');
-                                if (onLinkVideo) {
-                                    onLinkVideo(blobUrl);
-                                }
+                                console.log('Using blob URL fallback - manual conversion needed');
+                                // Don't auto-link if base64 conversion failed - user will need to use manual button
                             };
                             reader.readAsDataURL(videoBlob);
                         } else {
@@ -192,6 +195,7 @@ const StellarAnimator: React.FC<StellarAnimatorProps> = ({ contextStar, onLinkVi
         setStatus('generating');
         setError('');
         setVideoUrl(null);
+        setVideoBase64(null);
 
         try {
             const operation = await initiateVideoGeneration(sourceFile, prompt, aspectRatio);
@@ -221,11 +225,24 @@ const StellarAnimator: React.FC<StellarAnimatorProps> = ({ contextStar, onLinkVi
         
         if (status === 'success' && videoUrl) {
             const handleLinkVideo = () => {
-                if (videoUrl && onLinkVideo) {
-                    console.log('Manually linking video, current videoUrl:', videoUrl.substring(0, 50));
-                    // If it's a blob URL, we need to convert it to base64 first
+                console.log('Manual link button clicked');
+                console.log('videoBase64 available:', !!videoBase64);
+                console.log('videoUrl:', videoUrl?.substring(0, 50));
+                console.log('onLinkVideo available:', !!onLinkVideo);
+                
+                // Prefer base64 if available
+                if (videoBase64 && onLinkVideo) {
+                    console.log('Using stored base64 video, calling onLinkVideo');
+                    try {
+                        onLinkVideo(videoBase64);
+                        console.log('onLinkVideo called successfully with base64');
+                    } catch (err) {
+                        console.error('Error calling onLinkVideo:', err);
+                    }
+                } else if (videoUrl && onLinkVideo) {
+                    // Fallback: convert blob URL to base64
+                    console.log('No base64 available, converting blob URL to base64');
                     if (videoUrl.startsWith('blob:')) {
-                        // Fetch the blob and convert to base64
                         fetch(videoUrl)
                             .then(res => res.blob())
                             .then(blob => {
@@ -233,27 +250,31 @@ const StellarAnimator: React.FC<StellarAnimatorProps> = ({ contextStar, onLinkVi
                                 reader.onloadend = () => {
                                     const base64Video = reader.result as string;
                                     console.log('Converted blob to base64, calling onLinkVideo');
+                                    setVideoBase64(base64Video); // Store for future use
                                     onLinkVideo(base64Video);
                                 };
                                 reader.onerror = () => {
                                     console.error('Failed to convert blob to base64');
-                                    // Fallback: try with blob URL anyway
-                                    onLinkVideo(videoUrl);
+                                    alert('Failed to convert video. Please try again.');
                                 };
                                 reader.readAsDataURL(blob);
                             })
                             .catch(err => {
                                 console.error('Error fetching blob:', err);
-                                // Fallback: try with blob URL anyway
-                                onLinkVideo(videoUrl);
+                                alert('Failed to save video. Please try generating again.');
                             });
                     } else {
-                        // Already base64, use directly
-                        console.log('Video is already base64, linking directly');
+                        // Already a data URL
+                        console.log('Video is already a data URL, using directly');
                         onLinkVideo(videoUrl);
                     }
                 } else {
-                    console.error('Cannot link video: videoUrl=', videoUrl, 'onLinkVideo=', !!onLinkVideo);
+                    console.error('Cannot link video:', {
+                        videoUrl: !!videoUrl,
+                        videoBase64: !!videoBase64,
+                        onLinkVideo: !!onLinkVideo
+                    });
+                    alert('Cannot save video. Missing required data.');
                 }
             };
 
