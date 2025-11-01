@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { initiateVideoGeneration, pollVideoOperation } from '../services/geminiService';
+import { videoStorage } from '../services/videoStorage';
 import { XIcon, FilmStarIcon } from './Icons';
 import { StarSystem } from '../types';
 
 interface StellarAnimatorProps {
     contextStar: StarSystem | null;
-    onLinkVideo?: (videoUrl: string) => void;
+    onLinkVideo?: (videoBlob: Blob) => void;
     onClose: () => void;
 }
 
@@ -29,7 +30,7 @@ const StellarAnimator: React.FC<StellarAnimatorProps> = ({ contextStar, onLinkVi
     const [status, setStatus] = useState<GenerationStatus>('idle');
     const [error, setError] = useState<string>('');
     const [videoUrl, setVideoUrl] = useState<string | null>(null);
-    const [videoBase64, setVideoBase64] = useState<string | null>(null); // Store base64 separately
+    const [videoBlob, setVideoBlob] = useState<Blob | null>(null); // Store blob for IndexedDB
     const [hasApiKey, setHasApiKey] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState(loadingMessages[0]);
 
@@ -90,41 +91,26 @@ const StellarAnimator: React.FC<StellarAnimatorProps> = ({ contextStar, onLinkVi
                             const videoResponse = await fetch(`${uri}&key=${process.env.API_KEY}`);
                             const videoBlob = await videoResponse.blob();
                             
-                            // Convert blob to base64 for permanent storage
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                                const base64Video = reader.result as string;
-                                // Store base64 separately for storage
-                                setVideoBase64(base64Video);
-                                // Create blob URL for immediate display
-                                const blobUrl = URL.createObjectURL(videoBlob);
-                                setVideoUrl(blobUrl);
-                                setStatus('success');
-                                console.log('Video generated successfully, base64 length:', base64Video.length);
-                                // Automatically link video to star if callback provided (pass base64 for storage)
-                                if (onLinkVideo) {
-                                    console.log('Calling onLinkVideo with base64 video');
-                                    try {
-                                        onLinkVideo(base64Video);
-                                        console.log('onLinkVideo called successfully');
-                                    } catch (err) {
-                                        console.error('Error calling onLinkVideo:', err);
-                                    }
-                                } else {
-                                    console.warn('onLinkVideo callback not provided');
+                            // Store blob for IndexedDB storage
+                            setVideoBlob(videoBlob);
+                            // Create blob URL for immediate display
+                            const blobUrl = URL.createObjectURL(videoBlob);
+                            setVideoUrl(blobUrl);
+                            setStatus('success');
+                            console.log('Video generated successfully, blob size:', videoBlob.size, 'bytes');
+                            
+                            // Automatically link video to star if callback provided (pass blob for IndexedDB storage)
+                            if (onLinkVideo) {
+                                console.log('Calling onLinkVideo with video blob');
+                                try {
+                                    onLinkVideo(videoBlob);
+                                    console.log('onLinkVideo called successfully');
+                                } catch (err) {
+                                    console.error('Error calling onLinkVideo:', err);
                                 }
-                            };
-                            reader.onerror = (err) => {
-                                console.error('FileReader error:', err);
-                                // Fallback to blob URL if base64 conversion fails
-                                const blobUrl = URL.createObjectURL(videoBlob);
-                                setVideoUrl(blobUrl);
-                                setVideoBase64(null); // No base64 available
-                                setStatus('success');
-                                console.log('Using blob URL fallback - manual conversion needed');
-                                // Don't auto-link if base64 conversion failed - user will need to use manual button
-                            };
-                            reader.readAsDataURL(videoBlob);
+                            } else {
+                                console.warn('onLinkVideo callback not provided');
+                            }
                         } else {
                            throw new Error(updatedOp.error?.message || "Generation finished but no video was found.");
                         }
@@ -195,7 +181,7 @@ const StellarAnimator: React.FC<StellarAnimatorProps> = ({ contextStar, onLinkVi
         setStatus('generating');
         setError('');
         setVideoUrl(null);
-        setVideoBase64(null);
+        setVideoBlob(null);
 
         try {
             const operation = await initiateVideoGeneration(sourceFile, prompt, aspectRatio);
@@ -226,52 +212,43 @@ const StellarAnimator: React.FC<StellarAnimatorProps> = ({ contextStar, onLinkVi
         if (status === 'success' && videoUrl) {
             const handleLinkVideo = () => {
                 console.log('Manual link button clicked');
-                console.log('videoBase64 available:', !!videoBase64);
+                console.log('videoBlob available:', !!videoBlob);
                 console.log('videoUrl:', videoUrl?.substring(0, 50));
                 console.log('onLinkVideo available:', !!onLinkVideo);
                 
-                // Prefer base64 if available
-                if (videoBase64 && onLinkVideo) {
-                    console.log('Using stored base64 video, calling onLinkVideo');
+                // Use stored blob if available
+                if (videoBlob && onLinkVideo) {
+                    console.log('Using stored video blob, calling onLinkVideo');
                     try {
-                        onLinkVideo(videoBase64);
-                        console.log('onLinkVideo called successfully with base64');
+                        onLinkVideo(videoBlob);
+                        console.log('onLinkVideo called successfully with blob');
                     } catch (err) {
                         console.error('Error calling onLinkVideo:', err);
+                        alert('Failed to save video. Error: ' + (err instanceof Error ? err.message : 'Unknown error'));
                     }
                 } else if (videoUrl && onLinkVideo) {
-                    // Fallback: convert blob URL to base64
-                    console.log('No base64 available, converting blob URL to base64');
+                    // Fallback: fetch blob from blob URL
+                    console.log('No blob available, fetching from blob URL');
                     if (videoUrl.startsWith('blob:')) {
                         fetch(videoUrl)
                             .then(res => res.blob())
                             .then(blob => {
-                                const reader = new FileReader();
-                                reader.onloadend = () => {
-                                    const base64Video = reader.result as string;
-                                    console.log('Converted blob to base64, calling onLinkVideo');
-                                    setVideoBase64(base64Video); // Store for future use
-                                    onLinkVideo(base64Video);
-                                };
-                                reader.onerror = () => {
-                                    console.error('Failed to convert blob to base64');
-                                    alert('Failed to convert video. Please try again.');
-                                };
-                                reader.readAsDataURL(blob);
+                                console.log('Fetched blob from URL, calling onLinkVideo');
+                                setVideoBlob(blob); // Store for future use
+                                onLinkVideo(blob);
                             })
                             .catch(err => {
                                 console.error('Error fetching blob:', err);
                                 alert('Failed to save video. Please try generating again.');
                             });
                     } else {
-                        // Already a data URL
-                        console.log('Video is already a data URL, using directly');
-                        onLinkVideo(videoUrl);
+                        console.error('Video URL is not a blob URL');
+                        alert('Cannot save video. Invalid video format.');
                     }
                 } else {
                     console.error('Cannot link video:', {
                         videoUrl: !!videoUrl,
-                        videoBase64: !!videoBase64,
+                        videoBlob: !!videoBlob,
                         onLinkVideo: !!onLinkVideo
                     });
                     alert('Cannot save video. Missing required data.');
@@ -304,18 +281,26 @@ const StellarAnimator: React.FC<StellarAnimatorProps> = ({ contextStar, onLinkVi
         return (
             <div className="flex flex-col md:flex-row gap-6 h-full">
                 {/* Left Column: Controls */}
-                <div className="md:w-1/2 flex flex-col gap-4">
-                    <h3 className="font-display text-xl text-teal-200">1. Source Image</h3>
-                    <div className="flex-grow flex flex-col items-center justify-center p-4 border-2 border-dashed border-teal-300/30 rounded-lg bg-black/20">
-                        {sourcePreview ? (
-                            <img src={sourcePreview} alt="Source" className="max-h-64 w-auto rounded-md object-contain" />
-                        ) : (
-                            <p className="text-teal-200">Awaiting an image...</p>
-                        )}
-                         <input type="file" id="video-source-upload" className="hidden" accept="image/*" onChange={handleFileChange}/>
-                         <label htmlFor="video-source-upload" className="mt-4 cursor-pointer px-4 py-2 bg-teal-600/30 text-teal-100 rounded-full hover:bg-teal-600/50 transition-colors">
-                            {sourceFile ? 'Change Image' : 'Select Image'}
-                         </label>
+                    <div className="md:w-1/2 flex flex-col gap-4">
+                        <h3 className="font-display text-xl text-teal-200">1. Source Image</h3>
+                        <div className="flex-grow flex flex-col items-center justify-center p-4 border-2 border-dashed border-teal-300/30 rounded-lg bg-black/20 relative overflow-hidden min-h-[200px]">
+                            {sourcePreview ? (
+                                <>
+                                    <img src={sourcePreview} alt="Source" className="absolute inset-0 w-full h-full object-cover rounded-md" />
+                                    <input type="file" id="video-source-upload" className="hidden" accept="image/*" onChange={handleFileChange}/>
+                                    <label htmlFor="video-source-upload" className="relative z-10 mt-auto cursor-pointer px-4 py-2 bg-teal-600/80 text-teal-100 rounded-full hover:bg-teal-600 transition-colors backdrop-blur-sm">
+                                        Change Image
+                                    </label>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="text-teal-200 mb-4">Awaiting an image...</p>
+                                    <input type="file" id="video-source-upload" className="hidden" accept="image/*" onChange={handleFileChange}/>
+                                    <label htmlFor="video-source-upload" className="cursor-pointer px-4 py-2 bg-teal-600/30 text-teal-100 rounded-full hover:bg-teal-600/50 transition-colors">
+                                        Select Image
+                                    </label>
+                                </>
+                            )}
                     </div>
                 </div>
 

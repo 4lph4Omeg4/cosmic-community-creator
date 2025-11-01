@@ -6,6 +6,7 @@ import StarSystemDetail from './StarSystemDetail';
 import VisionWeaver from './VisionWeaver';
 import CelestialForge from './CelestialForge';
 import StellarAnimator from './StellarAnimator';
+import { videoStorage } from '../services/videoStorage';
 import { LogoutIcon } from './Icons';
 
 const initialPortalsData: StarSystem[] = [
@@ -86,43 +87,41 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
     const storageVideoKey = `cosmic-creator-videos-${user}`;
 
     useEffect(() => {
-        // Load saved images and videos from local storage for the logged-in user
-        const savedImages = localStorage.getItem(storageKey);
-        const savedVideos = localStorage.getItem(storageVideoKey);
-        
-        // Clean up old blob URLs from videos storage
-        if (savedVideos) {
-            const userVideos = JSON.parse(savedVideos);
-            let cleanedVideos: Record<string, string> = {};
-            let hasBlobUrls = false;
+        // Load saved images and videos
+        const loadData = async () => {
+            const savedImages = localStorage.getItem(storageKey);
+            const savedVideoRefs = localStorage.getItem(storageVideoKey);
             
-            Object.keys(userVideos).forEach(starId => {
-                const videoData = userVideos[starId];
-                if (videoData && videoData.startsWith('blob:')) {
-                    console.warn('Removing invalid blob URL for star:', starId);
-                    hasBlobUrls = true;
-                    // Don't add blob URLs - they're not persistent
-                } else if (videoData && videoData.startsWith('data:video/')) {
-                    // Valid base64 video - keep it
-                    cleanedVideos[starId] = videoData;
-                } else if (videoData) {
-                    // Assume it's base64 even if it doesn't start with data:video/
-                    cleanedVideos[starId] = videoData;
+            // Clean up old blob URLs and base64 videos from localStorage
+            if (savedVideoRefs) {
+                const userVideoRefs = JSON.parse(savedVideoRefs);
+                let cleanedRefs: Record<string, string> = {};
+                let hasOldData = false;
+                
+                Object.keys(userVideoRefs).forEach(starId => {
+                    const ref = userVideoRefs[starId];
+                    if (ref === 'indexeddb') {
+                        // Valid IndexedDB reference - keep it
+                        cleanedRefs[starId] = ref;
+                    } else if (ref && (ref.startsWith('blob:') || ref.startsWith('data:video/'))) {
+                        // Old blob URL or base64 - remove it
+                        console.warn('Removing old video data for star:', starId);
+                        hasOldData = true;
+                    }
+                });
+                
+                // Save cleaned refs back if we removed any old data
+                if (hasOldData) {
+                    localStorage.setItem(storageVideoKey, JSON.stringify(cleanedRefs));
+                    console.log('Cleaned up old video data from localStorage');
                 }
-            });
-            
-            // Save cleaned videos back if we removed any blob URLs
-            if (hasBlobUrls) {
-                localStorage.setItem(storageVideoKey, JSON.stringify(cleanedVideos));
-                console.log('Cleaned up blob URLs from video storage');
             }
-        }
-        
-        if (savedImages || savedVideos) {
-            const userImages = savedImages ? JSON.parse(savedImages) : {};
-            const userVideos = savedVideos ? JSON.parse(savedVideos) : {};
             
-            const updatedSystems = initialPortalsData.map(star => {
+            // Load images from localStorage
+            const userImages = savedImages ? JSON.parse(savedImages) : {};
+            
+            // Load videos from IndexedDB
+            const updatedSystems = await Promise.all(initialPortalsData.map(async (star) => {
                 const starData: StarSystem = { ...star };
                 
                 // Handle single image (backward compatibility)
@@ -138,27 +137,24 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
                     }
                 }
                 
-                // Handle video (only base64 data URLs, blob URLs are filtered out)
-                if (userVideos[star.id]) {
-                    const videoData = userVideos[star.id];
-                    if (videoData.startsWith('data:video/') || videoData.startsWith('data:')) {
-                        starData.video = videoData;
-                        console.log('Loaded base64 video for star:', star.id, star.label);
-                    } else if (videoData.startsWith('blob:')) {
-                        // This shouldn't happen after cleanup, but just in case
-                        console.warn('Found blob URL for star:', star.id, '- skipping (not persistent)');
-                    } else {
-                        // Assume it's base64 data URL (might be missing data: prefix)
-                        starData.video = videoData;
+                // Handle video from IndexedDB
+                try {
+                    const videoBlobUrl = await videoStorage.getVideo(user, star.id);
+                    if (videoBlobUrl) {
+                        starData.video = videoBlobUrl;
+                        console.log('Loaded video from IndexedDB for star:', star.id, star.label);
                     }
+                } catch (err) {
+                    console.error('Error loading video from IndexedDB for star', star.id, ':', err);
                 }
                 
                 return starData;
-            });
+            }));
+            
             setStarSystems(updatedSystems);
-        } else {
-            setStarSystems(initialPortalsData);
-        }
+        };
+        
+        loadData();
     }, [user, storageKey, storageVideoKey]);
 
     const handleSelectStar = (star: StarSystem) => {
@@ -256,7 +252,7 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
         handleCloseChamber();
     };
 
-    const handleLinkVideoToStar = (videoData: string) => {
+    const handleLinkVideoToStar = async (videoBlob: Blob) => {
         // Try multiple sources to find the target star
         let targetStar = contextStar || selectedStar;
         
@@ -267,36 +263,34 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
         
         if (targetStar) {
             console.log('Linking video to star:', targetStar.id, targetStar.label);
-            console.log('Video data type:', videoData.substring(0, 30));
+            console.log('Video blob size:', videoBlob.size, 'bytes');
             
-            // Ensure we're saving base64, not blob URL
-            let videoToSave = videoData;
-            if (videoData.startsWith('blob:')) {
-                console.error('ERROR: Received blob URL instead of base64! This should not happen.');
-                // Don't save blob URLs - they're not persistent
-                alert('Video could not be saved. Blob URLs are not persistent. Please try generating the video again.');
-                handleCloseChamber();
-                return;
-            }
-            
-            // Save the video (must be base64 data URL) to local storage
-            const savedVideos = JSON.parse(localStorage.getItem(storageVideoKey) || '{}');
-            savedVideos[targetStar.id] = videoToSave;
-            localStorage.setItem(storageVideoKey, JSON.stringify(savedVideos));
-            console.log('Video saved successfully to localStorage');
+            try {
+                // Save video blob to IndexedDB (no quota limits)
+                await videoStorage.saveVideo(user, targetStar.id, videoBlob);
+                console.log('Video saved successfully to IndexedDB');
 
-            // Use the video data directly (base64 data URL)
-            const displayUrl = videoToSave;
+                // Create blob URL for display
+                const blobUrl = URL.createObjectURL(videoBlob);
 
-            // Update the state for immediate UI feedback
-            const updatedSystems = starSystems.map(s =>
-                s.id === targetStar.id ? { ...s, video: displayUrl } : s
-            );
-            setStarSystems(updatedSystems);
+                // Also save a reference in localStorage for quick lookup (just the star ID, not the video)
+                const savedVideoRefs = JSON.parse(localStorage.getItem(storageVideoKey) || '{}');
+                savedVideoRefs[targetStar.id] = 'indexeddb'; // Marker that video is in IndexedDB
+                localStorage.setItem(storageVideoKey, JSON.stringify(savedVideoRefs));
 
-            // Update the selected star view if it's currently open
-            if (selectedStar && selectedStar.id === targetStar.id) {
-                setSelectedStar(prevStar => prevStar ? { ...prevStar, video: displayUrl } : null);
+                // Update the state for immediate UI feedback
+                const updatedSystems = starSystems.map(s =>
+                    s.id === targetStar.id ? { ...s, video: blobUrl } : s
+                );
+                setStarSystems(updatedSystems);
+
+                // Update the selected star view if it's currently open
+                if (selectedStar && selectedStar.id === targetStar.id) {
+                    setSelectedStar(prevStar => prevStar ? { ...prevStar, video: blobUrl } : null);
+                }
+            } catch (err) {
+                console.error('Error saving video to IndexedDB:', err);
+                alert('Failed to save video. Error: ' + (err instanceof Error ? err.message : 'Unknown error'));
             }
         } else {
             console.error('No target star found for linking video');
