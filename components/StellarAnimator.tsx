@@ -96,16 +96,27 @@ const StellarAnimator: React.FC<StellarAnimatorProps> = ({ contextStar, onLinkVi
                                 const blobUrl = URL.createObjectURL(videoBlob);
                                 setVideoUrl(blobUrl);
                                 setStatus('success');
+                                console.log('Video generated successfully, base64 length:', base64Video.length);
                                 // Automatically link video to star if callback provided (pass base64 for storage)
                                 if (onLinkVideo) {
-                                    onLinkVideo(base64Video);
+                                    console.log('Calling onLinkVideo with base64 video');
+                                    try {
+                                        onLinkVideo(base64Video);
+                                        console.log('onLinkVideo called successfully');
+                                    } catch (err) {
+                                        console.error('Error calling onLinkVideo:', err);
+                                    }
+                                } else {
+                                    console.warn('onLinkVideo callback not provided');
                                 }
                             };
-                            reader.onerror = () => {
+                            reader.onerror = (err) => {
+                                console.error('FileReader error:', err);
                                 // Fallback to blob URL if base64 conversion fails
                                 const blobUrl = URL.createObjectURL(videoBlob);
                                 setVideoUrl(blobUrl);
                                 setStatus('success');
+                                console.log('Using blob URL fallback');
                                 if (onLinkVideo) {
                                     onLinkVideo(blobUrl);
                                 }
@@ -209,12 +220,62 @@ const StellarAnimator: React.FC<StellarAnimatorProps> = ({ contextStar, onLinkVi
         }
         
         if (status === 'success' && videoUrl) {
+            const handleLinkVideo = () => {
+                if (videoUrl && onLinkVideo) {
+                    console.log('Manually linking video, current videoUrl:', videoUrl.substring(0, 50));
+                    // If it's a blob URL, we need to convert it to base64 first
+                    if (videoUrl.startsWith('blob:')) {
+                        // Fetch the blob and convert to base64
+                        fetch(videoUrl)
+                            .then(res => res.blob())
+                            .then(blob => {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                    const base64Video = reader.result as string;
+                                    console.log('Converted blob to base64, calling onLinkVideo');
+                                    onLinkVideo(base64Video);
+                                };
+                                reader.onerror = () => {
+                                    console.error('Failed to convert blob to base64');
+                                    // Fallback: try with blob URL anyway
+                                    onLinkVideo(videoUrl);
+                                };
+                                reader.readAsDataURL(blob);
+                            })
+                            .catch(err => {
+                                console.error('Error fetching blob:', err);
+                                // Fallback: try with blob URL anyway
+                                onLinkVideo(videoUrl);
+                            });
+                    } else {
+                        // Already base64, use directly
+                        console.log('Video is already base64, linking directly');
+                        onLinkVideo(videoUrl);
+                    }
+                } else {
+                    console.error('Cannot link video: videoUrl=', videoUrl, 'onLinkVideo=', !!onLinkVideo);
+                }
+            };
+
             return (
-                 <div className="flex flex-col items-center justify-center h-full">
-                    <video src={videoUrl} controls autoPlay loop className="max-h-full w-auto rounded-lg" />
-                     <button onClick={() => setStatus('idle')} className="mt-4 font-display text-lg px-6 py-2 border border-gray-400 text-gray-200 rounded-full hover:bg-white/10 transition-all">
-                        Create Another
-                    </button>
+                 <div className="flex flex-col items-center justify-center h-full gap-4">
+                    <video src={videoUrl} controls autoPlay loop className="max-h-[60vh] w-auto rounded-lg" />
+                    <div className="flex gap-4">
+                        {onLinkVideo && (
+                            <button 
+                                onClick={handleLinkVideo} 
+                                className="font-display text-lg px-6 py-2 bg-teal-500 text-black rounded-full hover:bg-teal-400 transition-all font-semibold"
+                            >
+                                Link Video to {contextStar?.label || 'Star'}
+                            </button>
+                        )}
+                        <button 
+                            onClick={() => setStatus('idle')} 
+                            className="font-display text-lg px-6 py-2 border border-gray-400 text-gray-200 rounded-full hover:bg-white/10 transition-all"
+                        >
+                            Create Another
+                        </button>
+                    </div>
                 </div>
             )
         }
