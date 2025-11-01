@@ -159,6 +159,11 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
 
     const handleSelectStar = (star: StarSystem) => {
         setSelectedStar(star);
+        // If celestial-forge or stellar-animator is open, also set contextStar
+        if (activeChamber === 'celestial-forge' || activeChamber === 'stellar-animator') {
+            setContextStar(star);
+            contextStarIdRef.current = star.id;
+        }
     };
 
     const handleBackToPortal = () => {
@@ -201,6 +206,8 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
     };
 
     const handleLinkImageToStar = (newImage: string) => {
+        console.log('handleLinkImageToStar called with image length:', newImage.length);
+        
         // Try multiple sources to find the target star
         let targetStar = contextStar || selectedStar;
         
@@ -212,42 +219,61 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
         if (targetStar) {
             console.log('Linking image to star:', targetStar.id, targetStar.label);
             
-            // Save the new image to the array of images for this star
-            const savedImages = JSON.parse(localStorage.getItem(storageKey) || '{}');
-            const existingImages = savedImages[targetStar.id] || [];
-            const imagesArray = Array.isArray(existingImages) ? existingImages : (existingImages ? [existingImages] : []);
-            
-            // Add new image if it doesn't already exist
-            if (!imagesArray.includes(newImage)) {
-                imagesArray.push(newImage);
-            }
-            
-            savedImages[targetStar.id] = imagesArray;
-            localStorage.setItem(storageKey, JSON.stringify(savedImages));
-
-            // Update the state for immediate UI feedback
-            const updatedSystems = starSystems.map(s => {
-                if (s.id === targetStar.id) {
-                    return {
-                        ...s,
-                        images: imagesArray,
-                        image: imagesArray[0] // Use first as main image
-                    };
+            try {
+                // Save the new image to the array of images for this star
+                const savedImages = JSON.parse(localStorage.getItem(storageKey) || '{}');
+                const existingImages = savedImages[targetStar.id] || [];
+                const imagesArray = Array.isArray(existingImages) ? existingImages : (existingImages ? [existingImages] : []);
+                
+                // Add new image if it doesn't already exist
+                if (!imagesArray.includes(newImage)) {
+                    imagesArray.push(newImage);
+                    console.log('Added new image to array. Total images:', imagesArray.length);
+                } else {
+                    console.log('Image already exists in array, skipping');
                 }
-                return s;
-            });
-            setStarSystems(updatedSystems);
+                
+                savedImages[targetStar.id] = imagesArray;
+                localStorage.setItem(storageKey, JSON.stringify(savedImages));
+                console.log('Image saved successfully to localStorage');
 
-            // Update the selected star view if it's currently open
-            if (selectedStar && selectedStar.id === targetStar.id) {
-                setSelectedStar(prevStar => prevStar ? {
-                    ...prevStar,
-                    images: imagesArray,
-                    image: imagesArray[0]
-                } : null);
+                // Update the state for immediate UI feedback
+                const updatedSystems = starSystems.map(s => {
+                    if (s.id === targetStar.id) {
+                        return {
+                            ...s,
+                            images: imagesArray,
+                            image: imagesArray[0] // Use first as main image
+                        };
+                    }
+                    return s;
+                });
+                setStarSystems(updatedSystems);
+
+                // Update the selected star view if it's currently open
+                if (selectedStar && selectedStar.id === targetStar.id) {
+                    setSelectedStar(prevStar => prevStar ? {
+                        ...prevStar,
+                        images: imagesArray,
+                        image: imagesArray[0]
+                    } : null);
+                }
+            } catch (err) {
+                console.error('Error saving image:', err);
+                if (err instanceof Error && err.name === 'QuotaExceededError') {
+                    alert('Storage quota exceeded. Please remove some old images or videos to free up space.');
+                } else {
+                    alert('Failed to save image. Error: ' + (err instanceof Error ? err.message : 'Unknown error'));
+                }
+                return; // Don't close chamber if save failed
             }
         } else {
             console.error('No target star found for linking image');
+            console.error('contextStar:', contextStar);
+            console.error('selectedStar:', selectedStar);
+            console.error('contextStarIdRef.current:', contextStarIdRef.current);
+            alert('Cannot save image. No star selected.');
+            return; // Don't close chamber if no star found
         }
         handleCloseChamber();
     };

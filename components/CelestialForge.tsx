@@ -91,9 +91,26 @@ const CelestialForge: React.FC<CelestialForgeProps> = ({ initialPrompt = '', con
     };
     
     const handleLinkVision = () => {
+        console.log('Link Vision button clicked');
+        console.log('generatedImage available:', !!generatedImage);
+        console.log('onLinkImage available:', !!onLinkImage);
+        console.log('contextStar:', contextStar?.id, contextStar?.label);
+        
         if (generatedImage && onLinkImage) {
-            console.log('Linking vision, contextStar:', contextStar?.id, contextStar?.label);
-            onLinkImage(generatedImage);
+            console.log('Calling onLinkImage with generated image');
+            try {
+                onLinkImage(generatedImage);
+                console.log('onLinkImage called successfully');
+            } catch (err) {
+                console.error('Error calling onLinkImage:', err);
+                setError('Failed to save image. Error: ' + (err instanceof Error ? err.message : 'Unknown error'));
+            }
+        } else {
+            console.error('Cannot link image:', {
+                generatedImage: !!generatedImage,
+                onLinkImage: !!onLinkImage
+            });
+            setError('Cannot save image. Missing required data.');
         }
     };
 
@@ -181,12 +198,16 @@ const CelestialForge: React.FC<CelestialForgeProps> = ({ initialPrompt = '', con
                                <p className="text-gray-500 text-center">Your vision will appear here.</p>
                            )}
                         </div>
-                        {generatedImage && contextStar && (
+                        {generatedImage && (
                            <button
                                onClick={handleLinkVision}
-                               className="w-full mt-2 py-2 bg-indigo-600 text-white rounded-full font-semibold hover:bg-indigo-500 transition-colors"
+                               className={`w-full mt-2 py-2 rounded-full font-semibold transition-colors ${
+                                   contextStar 
+                                       ? 'bg-indigo-600 text-white hover:bg-indigo-500' 
+                                       : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                               }`}
                            >
-                               Link Vision to {contextStar.label}
+                               {contextStar ? `Link Vision to ${contextStar.label}` : 'Select a star to save this vision'}
                            </button>
                         )}
                     </div>
