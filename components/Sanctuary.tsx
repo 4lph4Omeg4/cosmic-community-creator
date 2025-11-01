@@ -90,6 +90,34 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
         const savedImages = localStorage.getItem(storageKey);
         const savedVideos = localStorage.getItem(storageVideoKey);
         
+        // Clean up old blob URLs from videos storage
+        if (savedVideos) {
+            const userVideos = JSON.parse(savedVideos);
+            let cleanedVideos: Record<string, string> = {};
+            let hasBlobUrls = false;
+            
+            Object.keys(userVideos).forEach(starId => {
+                const videoData = userVideos[starId];
+                if (videoData && videoData.startsWith('blob:')) {
+                    console.warn('Removing invalid blob URL for star:', starId);
+                    hasBlobUrls = true;
+                    // Don't add blob URLs - they're not persistent
+                } else if (videoData && videoData.startsWith('data:video/')) {
+                    // Valid base64 video - keep it
+                    cleanedVideos[starId] = videoData;
+                } else if (videoData) {
+                    // Assume it's base64 even if it doesn't start with data:video/
+                    cleanedVideos[starId] = videoData;
+                }
+            });
+            
+            // Save cleaned videos back if we removed any blob URLs
+            if (hasBlobUrls) {
+                localStorage.setItem(storageVideoKey, JSON.stringify(cleanedVideos));
+                console.log('Cleaned up blob URLs from video storage');
+            }
+        }
+        
         if (savedImages || savedVideos) {
             const userImages = savedImages ? JSON.parse(savedImages) : {};
             const userVideos = savedVideos ? JSON.parse(savedVideos) : {};
@@ -110,10 +138,19 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
                     }
                 }
                 
-                // Handle video (base64 data URL or blob URL)
+                // Handle video (only base64 data URLs, blob URLs are filtered out)
                 if (userVideos[star.id]) {
-                    starData.video = userVideos[star.id];
-                    console.log('Loaded video for star:', star.id, star.label, 'Type:', userVideos[star.id].substring(0, 20));
+                    const videoData = userVideos[star.id];
+                    if (videoData.startsWith('data:video/') || videoData.startsWith('data:')) {
+                        starData.video = videoData;
+                        console.log('Loaded base64 video for star:', star.id, star.label);
+                    } else if (videoData.startsWith('blob:')) {
+                        // This shouldn't happen after cleanup, but just in case
+                        console.warn('Found blob URL for star:', star.id, '- skipping (not persistent)');
+                    } else {
+                        // Assume it's base64 data URL (might be missing data: prefix)
+                        starData.video = videoData;
+                    }
                 }
                 
                 return starData;
@@ -230,15 +267,26 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
         
         if (targetStar) {
             console.log('Linking video to star:', targetStar.id, targetStar.label);
+            console.log('Video data type:', videoData.substring(0, 30));
             
-            // Save the video (base64 or blob URL) to local storage
+            // Ensure we're saving base64, not blob URL
+            let videoToSave = videoData;
+            if (videoData.startsWith('blob:')) {
+                console.error('ERROR: Received blob URL instead of base64! This should not happen.');
+                // Don't save blob URLs - they're not persistent
+                alert('Video could not be saved. Blob URLs are not persistent. Please try generating the video again.');
+                handleCloseChamber();
+                return;
+            }
+            
+            // Save the video (must be base64 data URL) to local storage
             const savedVideos = JSON.parse(localStorage.getItem(storageVideoKey) || '{}');
-            savedVideos[targetStar.id] = videoData;
+            savedVideos[targetStar.id] = videoToSave;
             localStorage.setItem(storageVideoKey, JSON.stringify(savedVideos));
+            console.log('Video saved successfully to localStorage');
 
-            // Use the video data directly (base64 data URL or blob URL)
-            // Base64 data URLs are persistent and can be used directly in video tags
-            const displayUrl = videoData;
+            // Use the video data directly (base64 data URL)
+            const displayUrl = videoToSave;
 
             // Update the state for immediate UI feedback
             const updatedSystems = starSystems.map(s =>
