@@ -7,6 +7,7 @@ import VisionWeaver from './VisionWeaver';
 import CelestialForge from './CelestialForge';
 import StellarAnimator from './StellarAnimator';
 import { videoStorage } from '../services/videoStorage';
+import { imageStorage } from '../services/imageStorage';
 import { LogoutIcon } from './Icons';
 
 const initialPortalsData: StarSystem[] = [
@@ -82,80 +83,50 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
     const [contextStar, setContextStar] = useState<StarSystem | null>(null);
     const [chamberInitialPrompt, setChamberInitialPrompt] = useState('');
     const contextStarIdRef = useRef<string | null>(null);
-    
-    const storageKey = `cosmic-creator-images-${user}`;
-    const storageVideoKey = `cosmic-creator-videos-${user}`;
 
     useEffect(() => {
-        // Load saved images and videos
+        // Load saved images and videos from Supabase
         const loadData = async () => {
-            const savedImages = localStorage.getItem(storageKey);
-            const savedVideoRefs = localStorage.getItem(storageVideoKey);
-            
-            // Clean up old blob URLs and base64 videos from localStorage
-            if (savedVideoRefs) {
-                const userVideoRefs = JSON.parse(savedVideoRefs);
-                let cleanedRefs: Record<string, string> = {};
-                let hasOldData = false;
-                
-                Object.keys(userVideoRefs).forEach(starId => {
-                    const ref = userVideoRefs[starId];
-                    if (ref === 'indexeddb') {
-                        // Valid IndexedDB reference - keep it
-                        cleanedRefs[starId] = ref;
-                    } else if (ref && (ref.startsWith('blob:') || ref.startsWith('data:video/'))) {
-                        // Old blob URL or base64 - remove it
-                        console.warn('Removing old video data for star:', starId);
-                        hasOldData = true;
+            try {
+                const updatedSystems = await Promise.all(initialPortalsData.map(async (star) => {
+                    const starData: StarSystem = { ...star };
+                    
+                    // Load images from Supabase
+                    try {
+                        const imageUrls = await imageStorage.getImage(user, star.id);
+                        if (imageUrls && imageUrls.length > 0) {
+                            starData.images = imageUrls;
+                            starData.image = imageUrls[0]; // Use first as main image
+                            console.log(`Loaded ${imageUrls.length} images from Supabase for star:`, star.id, star.label);
+                        }
+                    } catch (err) {
+                        console.error('Error loading images from Supabase for star', star.id, ':', err);
                     }
-                });
+                    
+                    // Load video from Supabase
+                    try {
+                        const videoUrl = await videoStorage.getVideo(user, star.id);
+                        if (videoUrl) {
+                            starData.video = videoUrl;
+                            console.log('Loaded video from Supabase for star:', star.id, star.label);
+                        }
+                    } catch (err) {
+                        console.error('Error loading video from Supabase for star', star.id, ':', err);
+                    }
+                    
+                    return starData;
+                }));
                 
-                // Save cleaned refs back if we removed any old data
-                if (hasOldData) {
-                    localStorage.setItem(storageVideoKey, JSON.stringify(cleanedRefs));
-                    console.log('Cleaned up old video data from localStorage');
-                }
+                setStarSystems(updatedSystems);
+            } catch (err) {
+                console.error('Error loading data from Supabase:', err);
+                // Fallback: set systems without custom media
+                setStarSystems(initialPortalsData);
             }
-            
-            // Load images from localStorage
-            const userImages = savedImages ? JSON.parse(savedImages) : {};
-            
-            // Load videos from IndexedDB
-            const updatedSystems = await Promise.all(initialPortalsData.map(async (star) => {
-                const starData: StarSystem = { ...star };
-                
-                // Handle single image (backward compatibility)
-                if (userImages[star.id] && typeof userImages[star.id] === 'string') {
-                    starData.image = userImages[star.id];
-                }
-                
-                // Handle multiple images
-                if (userImages[star.id] && Array.isArray(userImages[star.id])) {
-                    starData.images = userImages[star.id];
-                    if (userImages[star.id].length > 0) {
-                        starData.image = userImages[star.id][0]; // Use first as main image
-                    }
-                }
-                
-                // Handle video from IndexedDB
-                try {
-                    const videoBlobUrl = await videoStorage.getVideo(user, star.id);
-                    if (videoBlobUrl) {
-                        starData.video = videoBlobUrl;
-                        console.log('Loaded video from IndexedDB for star:', star.id, star.label);
-                    }
-                } catch (err) {
-                    console.error('Error loading video from IndexedDB for star', star.id, ':', err);
-                }
-                
-                return starData;
-            }));
-            
-            setStarSystems(updatedSystems);
         };
         
         loadData();
-    }, [user, storageKey, storageVideoKey]);
+    }, [user]);
 
     const handleSelectStar = (star: StarSystem) => {
         setSelectedStar(star);
@@ -205,7 +176,7 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
         setActiveChamber('stellar-animator');
     };
 
-    const handleLinkImageToStar = (newImage: string) => {
+    const handleLinkImageToStar = async (newImage: string) => {
         console.log('handleLinkImageToStar called with image length:', newImage.length);
         
         // Try multiple sources to find the target star
@@ -220,30 +191,20 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
             console.log('Linking image to star:', targetStar.id, targetStar.label);
             
             try {
-                // Save the new image to the array of images for this star
-                const savedImages = JSON.parse(localStorage.getItem(storageKey) || '{}');
-                const existingImages = savedImages[targetStar.id] || [];
-                const imagesArray = Array.isArray(existingImages) ? existingImages : (existingImages ? [existingImages] : []);
+                // Upload image to Supabase Storage
+                const imageUrl = await imageStorage.saveImage(user, targetStar.id, newImage);
+                console.log('Image uploaded to Supabase:', imageUrl);
                 
-                // Add new image if it doesn't already exist
-                if (!imagesArray.includes(newImage)) {
-                    imagesArray.push(newImage);
-                    console.log('Added new image to array. Total images:', imagesArray.length);
-                } else {
-                    console.log('Image already exists in array, skipping');
-                }
+                // Reload images from Supabase to get updated list
+                const updatedImageUrls = await imageStorage.getImage(user, targetStar.id);
                 
-                savedImages[targetStar.id] = imagesArray;
-                localStorage.setItem(storageKey, JSON.stringify(savedImages));
-                console.log('Image saved successfully to localStorage');
-
                 // Update the state for immediate UI feedback
                 const updatedSystems = starSystems.map(s => {
                     if (s.id === targetStar.id) {
                         return {
                             ...s,
-                            images: imagesArray,
-                            image: imagesArray[0] // Use first as main image
+                            images: updatedImageUrls,
+                            image: updatedImageUrls[0] || s.image // Use first as main image
                         };
                     }
                     return s;
@@ -254,17 +215,13 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
                 if (selectedStar && selectedStar.id === targetStar.id) {
                     setSelectedStar(prevStar => prevStar ? {
                         ...prevStar,
-                        images: imagesArray,
-                        image: imagesArray[0]
+                        images: updatedImageUrls,
+                        image: updatedImageUrls[0] || prevStar.image
                     } : null);
                 }
             } catch (err) {
-                console.error('Error saving image:', err);
-                if (err instanceof Error && err.name === 'QuotaExceededError') {
-                    alert('Storage quota exceeded. Please remove some old images or videos to free up space.');
-                } else {
-                    alert('Failed to save image. Error: ' + (err instanceof Error ? err.message : 'Unknown error'));
-                }
+                console.error('Error saving image to Supabase:', err);
+                alert('Failed to save image. Error: ' + (err instanceof Error ? err.message : 'Unknown error'));
                 return; // Don't close chamber if save failed
             }
         } else {
@@ -292,30 +249,22 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
             console.log('Video blob size:', videoBlob.size, 'bytes');
             
             try {
-                // Save video blob to IndexedDB (no quota limits)
-                await videoStorage.saveVideo(user, targetStar.id, videoBlob);
-                console.log('Video saved successfully to IndexedDB');
-
-                // Create blob URL for display
-                const blobUrl = URL.createObjectURL(videoBlob);
-
-                // Also save a reference in localStorage for quick lookup (just the star ID, not the video)
-                const savedVideoRefs = JSON.parse(localStorage.getItem(storageVideoKey) || '{}');
-                savedVideoRefs[targetStar.id] = 'indexeddb'; // Marker that video is in IndexedDB
-                localStorage.setItem(storageVideoKey, JSON.stringify(savedVideoRefs));
+                // Save video to Supabase Storage
+                const videoUrl = await videoStorage.saveVideo(user, targetStar.id, videoBlob);
+                console.log('Video saved successfully to Supabase:', videoUrl);
 
                 // Update the state for immediate UI feedback
                 const updatedSystems = starSystems.map(s =>
-                    s.id === targetStar.id ? { ...s, video: blobUrl } : s
+                    s.id === targetStar.id ? { ...s, video: videoUrl } : s
                 );
                 setStarSystems(updatedSystems);
 
                 // Update the selected star view if it's currently open
                 if (selectedStar && selectedStar.id === targetStar.id) {
-                    setSelectedStar(prevStar => prevStar ? { ...prevStar, video: blobUrl } : null);
+                    setSelectedStar(prevStar => prevStar ? { ...prevStar, video: videoUrl } : null);
                 }
             } catch (err) {
-                console.error('Error saving video to IndexedDB:', err);
+                console.error('Error saving video to Supabase:', err);
                 alert('Failed to save video. Error: ' + (err instanceof Error ? err.message : 'Unknown error'));
             }
         } else {
