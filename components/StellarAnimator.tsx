@@ -88,13 +88,29 @@ const StellarAnimator: React.FC<StellarAnimatorProps> = ({ contextStar, onLinkVi
                         if (uri) {
                             const videoResponse = await fetch(`${uri}&key=${process.env.API_KEY}`);
                             const videoBlob = await videoResponse.blob();
-                            const blobUrl = URL.createObjectURL(videoBlob);
-                            setVideoUrl(blobUrl);
-                            setStatus('success');
-                            // Automatically link video to star if callback provided
-                            if (onLinkVideo) {
-                                onLinkVideo(blobUrl);
-                            }
+                            
+                            // Convert blob to base64 for permanent storage
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                                const base64Video = reader.result as string;
+                                const blobUrl = URL.createObjectURL(videoBlob);
+                                setVideoUrl(blobUrl);
+                                setStatus('success');
+                                // Automatically link video to star if callback provided (pass base64 for storage)
+                                if (onLinkVideo) {
+                                    onLinkVideo(base64Video);
+                                }
+                            };
+                            reader.onerror = () => {
+                                // Fallback to blob URL if base64 conversion fails
+                                const blobUrl = URL.createObjectURL(videoBlob);
+                                setVideoUrl(blobUrl);
+                                setStatus('success');
+                                if (onLinkVideo) {
+                                    onLinkVideo(blobUrl);
+                                }
+                            };
+                            reader.readAsDataURL(videoBlob);
                         } else {
                            throw new Error(updatedOp.error?.message || "Generation finished but no video was found.");
                         }

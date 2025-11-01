@@ -110,9 +110,10 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
                     }
                 }
                 
-                // Handle video
+                // Handle video (base64 data URL or blob URL)
                 if (userVideos[star.id]) {
                     starData.video = userVideos[star.id];
+                    console.log('Loaded video for star:', star.id, star.label, 'Type:', userVideos[star.id].substring(0, 20));
                 }
                 
                 return starData;
@@ -218,7 +219,7 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
         handleCloseChamber();
     };
 
-    const handleLinkVideoToStar = (videoUrl: string) => {
+    const handleLinkVideoToStar = (videoData: string) => {
         // Try multiple sources to find the target star
         let targetStar = contextStar || selectedStar;
         
@@ -230,20 +231,24 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
         if (targetStar) {
             console.log('Linking video to star:', targetStar.id, targetStar.label);
             
-            // Save the video to local storage
+            // Save the video (base64 or blob URL) to local storage
             const savedVideos = JSON.parse(localStorage.getItem(storageVideoKey) || '{}');
-            savedVideos[targetStar.id] = videoUrl;
+            savedVideos[targetStar.id] = videoData;
             localStorage.setItem(storageVideoKey, JSON.stringify(savedVideos));
+
+            // Use the video data directly (base64 data URL or blob URL)
+            // Base64 data URLs are persistent and can be used directly in video tags
+            const displayUrl = videoData;
 
             // Update the state for immediate UI feedback
             const updatedSystems = starSystems.map(s =>
-                s.id === targetStar.id ? { ...s, video: videoUrl } : s
+                s.id === targetStar.id ? { ...s, video: displayUrl } : s
             );
             setStarSystems(updatedSystems);
 
             // Update the selected star view if it's currently open
             if (selectedStar && selectedStar.id === targetStar.id) {
-                setSelectedStar(prevStar => prevStar ? { ...prevStar, video: videoUrl } : null);
+                setSelectedStar(prevStar => prevStar ? { ...prevStar, video: displayUrl } : null);
             }
         } else {
             console.error('No target star found for linking video');
