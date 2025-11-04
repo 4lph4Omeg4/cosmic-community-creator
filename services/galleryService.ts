@@ -25,12 +25,30 @@ async function getAllImages(limit: number = 20): Promise<GalleryItem[]> {
 
         if (foldersError) {
             console.error('Error listing image folders:', foldersError);
+            console.error('Error details:', {
+                message: foldersError.message,
+                statusCode: foldersError.statusCode,
+                error: foldersError.error,
+            });
+            // If RLS policy blocks access, throw error so UI can handle it
+            if (foldersError.message?.includes('row-level security') || 
+                foldersError.message?.includes('permission') ||
+                foldersError.message?.includes('policy') ||
+                foldersError.statusCode === '403' ||
+                foldersError.statusCode === 403) {
+                console.warn('Storage bucket access denied - check RLS policies for public read access');
+                throw new Error('Storage bucket access denied. Please configure RLS policies for public read access.');
+            }
+            // For other errors, return empty array (graceful degradation)
             return [];
         }
 
         if (!folders || folders.length === 0) {
+            console.log('No image folders found in bucket');
             return [];
         }
+
+        console.log(`Found ${folders.length} user folders in images bucket`);
 
         const allImages: GalleryItem[] = [];
 
@@ -108,12 +126,30 @@ async function getAllVideos(limit: number = 10): Promise<GalleryItem[]> {
 
         if (foldersError) {
             console.error('Error listing video folders:', foldersError);
+            console.error('Error details:', {
+                message: foldersError.message,
+                statusCode: foldersError.statusCode,
+                error: foldersError.error,
+            });
+            // If RLS policy blocks access, throw error so UI can handle it
+            if (foldersError.message?.includes('row-level security') || 
+                foldersError.message?.includes('permission') ||
+                foldersError.message?.includes('policy') ||
+                foldersError.statusCode === '403' ||
+                foldersError.statusCode === 403) {
+                console.warn('Storage bucket access denied - check RLS policies for public read access');
+                throw new Error('Storage bucket access denied. Please configure RLS policies for public read access.');
+            }
+            // For other errors, return empty array (graceful degradation)
             return [];
         }
 
         if (!folders || folders.length === 0) {
+            console.log('No video folders found in bucket');
             return [];
         }
+
+        console.log(`Found ${folders.length} user folders in videos bucket`);
 
         const allVideos: GalleryItem[] = [];
 

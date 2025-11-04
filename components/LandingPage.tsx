@@ -12,19 +12,23 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
     const [galleryImages, setGalleryImages] = useState<GalleryItem[]>([]);
     const [galleryVideos, setGalleryVideos] = useState<GalleryItem[]>([]);
     const [isLoadingGallery, setIsLoadingGallery] = useState(true);
+    const [hasError, setHasError] = useState(false);
 
     useEffect(() => {
         const loadGallery = async () => {
             setIsLoadingGallery(true);
+            setHasError(false);
             try {
                 const [images, videos] = await Promise.all([
                     galleryService.getAllImages(12),
                     galleryService.getAllVideos(8),
                 ]);
-                setGalleryImages(images);
-                setGalleryVideos(videos);
+                console.log('Gallery loaded:', { imagesCount: images?.length || 0, videosCount: videos?.length || 0 });
+                setGalleryImages(images || []);
+                setGalleryVideos(videos || []);
             } catch (err) {
                 console.error('Error loading gallery:', err);
+                setHasError(true);
             } finally {
                 setIsLoadingGallery(false);
             }
@@ -167,8 +171,16 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                     </div>
                 )}
 
-                {/* Empty State */}
-                {!isLoadingGallery && galleryImages.length === 0 && galleryVideos.length === 0 && (
+                {/* Error State */}
+                {!isLoadingGallery && hasError && (
+                    <div className="text-center text-yellow-500 py-8">
+                        <p className="font-display mb-2">Unable to load gallery.</p>
+                        <p className="text-sm text-gray-400">Check browser console for details. This may be a storage policy issue.</p>
+                    </div>
+                )}
+
+                {/* Empty State - Only show if not loading, no error, and truly no creations */}
+                {!isLoadingGallery && !hasError && galleryImages.length === 0 && galleryVideos.length === 0 && (
                     <div className="text-center text-gray-500 py-8">
                         <p className="font-display">No creations yet. Be the first to create!</p>
                     </div>
