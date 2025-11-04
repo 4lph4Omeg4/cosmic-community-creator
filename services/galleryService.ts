@@ -49,23 +49,40 @@ async function getAllImages(limit: number = 20): Promise<GalleryItem[]> {
         }
 
         console.log(`Found ${folders.length} user folders in images bucket`);
+        console.log('Folder details:', folders.map(f => ({ name: f.name, id: f.id, created_at: f.created_at })));
 
         const allImages: GalleryItem[] = [];
 
-        // Get the first valid user folder
-        const userFolder = folders.find(f => f.name && !f.name.includes('.'));
-        
+        // Get the first valid user folder (skip folders that are likely system files)
+        const userFolder = folders.find(f => {
+            const isValid = f.name && 
+                           !f.name.startsWith('.') && 
+                           f.name !== '.emptyFolderPlaceholder' &&
+                           !f.name.includes('..');
+            if (!isValid) {
+                console.log(`Skipping folder: ${f.name} (invalid)`);
+            }
+            return isValid;
+        });
+
         if (!userFolder || !userFolder.name) {
-            console.log('No valid user folder found');
-            return [];
+            console.log('No valid user folder found. Available folders:', folders.map(f => f.name));
+            // Try to use the first folder anyway, even if it has unusual characters
+            if (folders.length > 0 && folders[0].name) {
+                console.log('Using first folder as fallback:', folders[0].name);
+                // We'll use folders[0] below
+            } else {
+                return [];
+            }
         }
 
-        console.log(`Using user folder: ${userFolder.name}`);
+        const selectedFolder = userFolder || folders[0];
+        console.log(`Using user folder: ${selectedFolder.name}`);
 
         // Get all star folders for this user
         const { data: starFolders, error: starError } = await supabase.storage
             .from(IMAGES_BUCKET)
-            .list(userFolder.name, {
+            .list(selectedFolder.name, {
                 limit: 100,
             });
 
@@ -75,7 +92,7 @@ async function getAllImages(limit: number = 20): Promise<GalleryItem[]> {
         }
 
         if (!starFolders || starFolders.length === 0) {
-            console.log(`No star folders found in ${userFolder.name}`);
+            console.log(`No star folders found in ${selectedFolder.name}`);
             return [];
         }
 
@@ -83,11 +100,11 @@ async function getAllImages(limit: number = 20): Promise<GalleryItem[]> {
 
         // Get images from all star folders
         for (const starFolder of starFolders) {
-            if (!starFolder.name || starFolder.name.includes('.')) continue;
+            if (!starFolder.name || starFolder.name.startsWith('.')) continue;
 
             const { data: files, error: filesError } = await supabase.storage
                 .from(IMAGES_BUCKET)
-                .list(`${userFolder.name}/${starFolder.name}`, {
+                .list(`${selectedFolder.name}/${starFolder.name}`, {
                     limit: 100,
                     sortBy: { column: 'created_at', order: 'desc' },
                 });
@@ -105,7 +122,7 @@ async function getAllImages(limit: number = 20): Promise<GalleryItem[]> {
 
             for (const file of files) {
                 if (file.name && !file.name.endsWith('/') && file.name.match(/\.(jpg|jpeg|png|webp|gif)$/i)) {
-                    const filePath = `${userFolder.name}/${starFolder.name}/${file.name}`;
+                    const filePath = `${selectedFolder.name}/${starFolder.name}/${file.name}`;
                     const { data: urlData } = supabase.storage
                         .from(IMAGES_BUCKET)
                         .getPublicUrl(filePath);
@@ -114,7 +131,7 @@ async function getAllImages(limit: number = 20): Promise<GalleryItem[]> {
                         allImages.push({
                             url: urlData.publicUrl,
                             type: 'image',
-                            userId: userFolder.name,
+                            userId: selectedFolder.name,
                             starId: starFolder.name,
                             createdAt: file.created_at || file.updated_at || new Date().toISOString(),
                         });
@@ -175,23 +192,40 @@ async function getAllVideos(limit: number = 10): Promise<GalleryItem[]> {
         }
 
         console.log(`Found ${folders.length} user folders in videos bucket`);
+        console.log('Video folder details:', folders.map(f => ({ name: f.name, id: f.id, created_at: f.created_at })));
 
         const allVideos: GalleryItem[] = [];
 
-        // Get the first valid user folder
-        const userFolder = folders.find(f => f.name && !f.name.includes('.'));
-        
+        // Get the first valid user folder (skip folders that are likely system files)
+        const userFolder = folders.find(f => {
+            const isValid = f.name && 
+                           !f.name.startsWith('.') && 
+                           f.name !== '.emptyFolderPlaceholder' &&
+                           !f.name.includes('..');
+            if (!isValid) {
+                console.log(`Skipping folder (videos): ${f.name} (invalid)`);
+            }
+            return isValid;
+        });
+
         if (!userFolder || !userFolder.name) {
-            console.log('No valid user folder found (videos)');
-            return [];
+            console.log('No valid user folder found (videos). Available folders:', folders.map(f => f.name));
+            // Try to use the first folder anyway, even if it has unusual characters
+            if (folders.length > 0 && folders[0].name) {
+                console.log('Using first folder as fallback (videos):', folders[0].name);
+                // We'll use folders[0] below
+            } else {
+                return [];
+            }
         }
 
-        console.log(`Using user folder (videos): ${userFolder.name}`);
+        const selectedFolder = userFolder || folders[0];
+        console.log(`Using user folder (videos): ${selectedFolder.name}`);
 
         // Get all star folders for this user
         const { data: starFolders, error: starError } = await supabase.storage
             .from(VIDEOS_BUCKET)
-            .list(userFolder.name, {
+            .list(selectedFolder.name, {
                 limit: 100,
             });
 
@@ -209,11 +243,11 @@ async function getAllVideos(limit: number = 10): Promise<GalleryItem[]> {
 
         // Get videos from all star folders
         for (const starFolder of starFolders) {
-            if (!starFolder.name || starFolder.name.includes('.')) continue;
+            if (!starFolder.name || starFolder.name.startsWith('.')) continue;
 
             const { data: files, error: filesError } = await supabase.storage
                 .from(VIDEOS_BUCKET)
-                .list(`${userFolder.name}/${starFolder.name}`, {
+                .list(`${selectedFolder.name}/${starFolder.name}`, {
                     limit: 100,
                     sortBy: { column: 'created_at', order: 'desc' },
                 });
@@ -231,7 +265,7 @@ async function getAllVideos(limit: number = 10): Promise<GalleryItem[]> {
 
             for (const file of files) {
                 if (file.name && !file.name.endsWith('/') && file.name.match(/\.(mp4|webm|mov)$/i)) {
-                    const filePath = `${userFolder.name}/${starFolder.name}/${file.name}`;
+                    const filePath = `${selectedFolder.name}/${starFolder.name}/${file.name}`;
                     const { data: urlData } = supabase.storage
                         .from(VIDEOS_BUCKET)
                         .getPublicUrl(filePath);
@@ -240,7 +274,7 @@ async function getAllVideos(limit: number = 10): Promise<GalleryItem[]> {
                         allVideos.push({
                             url: urlData.publicUrl,
                             type: 'video',
-                            userId: userFolder.name,
+                            userId: selectedFolder.name,
                             starId: starFolder.name,
                             createdAt: file.created_at || file.updated_at || new Date().toISOString(),
                         });
