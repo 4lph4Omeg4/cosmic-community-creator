@@ -117,7 +117,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                                     <img
                                         src={item.url}
                                         alt={`Cosmic vision ${index + 1}`}
-                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                                         loading="lazy"
                                     />
                                 </motion.div>
@@ -148,7 +148,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                                 >
                                     <video
                                         src={item.url}
-                                        className="w-full h-full object-cover"
+                                        className="w-full h-full object-contain"
                                         muted
                                         loop
                                         playsInline
