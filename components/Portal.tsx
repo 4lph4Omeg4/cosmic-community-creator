@@ -71,7 +71,7 @@ const Portal: React.FC<PortalProps> = ({ portals, isStargazing, setIsStargazing,
             </button>
         </div>
 
-      <div className="text-center mb-8 transition-opacity duration-700" style={{ opacity: isStargazing ? 0 : 1 }}>
+      <div className="text-center mb-20 md:mb-24 transition-opacity duration-700" style={{ opacity: isStargazing ? 0 : 1 }}>
         <h1 className="font-display text-4xl md:text-5xl text-white font-light tracking-wider">
           The Sanctuary of Remembrance
         </h1>
