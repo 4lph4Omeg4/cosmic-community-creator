@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { StarSystem, ActiveChamber } from '../types';
-import { SparklesIcon, NebulaIcon, StarIcon, FilmStarIcon } from './Icons';
+import { SparklesIcon, NebulaIcon, StarIcon, FilmStarIcon, OracleIcon } from './Icons';
 
 type ThemeName = 'pleiaden' | 'arcturus' | 'sirius' | 'lyra' | 'andromeda' | 'orion' | 'zeta-reticuli' | 'polaris';
 
@@ -66,9 +66,12 @@ const Portal: React.FC<PortalProps> = ({ portals, isStargazing, setIsStargazing,
             <button onClick={() => onOpenChamber('stellar-animator')} className="text-gray-400 hover:text-white transition-colors" title="Stellar Animator">
                 <FilmStarIcon className="w-7 h-7" />
             </button>
+            <button onClick={() => onOpenChamber('universal-oracle')} className="text-gray-400 hover:text-white transition-colors" title="Universal Oracle">
+                <OracleIcon className="w-7 h-7" />
+            </button>
         </div>
 
-      <div className="text-center mb-16 transition-opacity duration-700" style={{ opacity: isStargazing ? 0 : 1 }}>
+      <div className="text-center mb-8 transition-opacity duration-700" style={{ opacity: isStargazing ? 0 : 1 }}>
         <h1 className="font-display text-4xl md:text-5xl text-white font-light tracking-wider">
           The Sanctuary of Remembrance
         </h1>

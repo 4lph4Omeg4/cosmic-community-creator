@@ -6,6 +6,7 @@ import StarSystemDetail from './StarSystemDetail';
 import VisionWeaver from './VisionWeaver';
 import CelestialForge from './CelestialForge';
 import StellarAnimator from './StellarAnimator';
+import UniversalOracle from './UniversalOracle';
 import { videoStorage } from '../services/videoStorage';
 import { imageStorage } from '../services/imageStorage';
 import { LogoutIcon } from './Icons';
@@ -323,6 +324,9 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
                         onLinkVideo={handleLinkVideoToStar}
                         onClose={handleCloseChamber}
                     />
+                )}
+                {activeChamber === 'universal-oracle' && (
+                    <UniversalOracle onClose={handleCloseChamber} />
                 )}
             </AnimatePresence>
         </div>

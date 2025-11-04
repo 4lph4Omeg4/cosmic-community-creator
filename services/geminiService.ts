@@ -36,6 +36,30 @@ export const getPoeticReflection = async (prompt: string): Promise<string> => {
 };
 
 /**
+ * Generates an oracle response to a user's question.
+ * Can provide short concise answers or more detailed explanations when necessary.
+ * @param question The user's question.
+ * @param detailed Whether to provide a detailed explanation (true) or a concise answer (false).
+ * @returns A string containing the oracle's response.
+ */
+export const getOracleResponse = async (question: string, detailed: boolean = false): Promise<string> => {
+  try {
+    const instruction = detailed 
+      ? `You are the Universal Oracle, a wise and mystical guide that provides detailed, insightful answers to questions about the cosmos, consciousness, spirituality, and the nature of reality. Provide a comprehensive, thoughtful response that explores the question deeply.`
+      : `You are the Universal Oracle, a wise and mystical guide. Provide a concise, insightful answer to the question. Be brief but meaningful.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-pro',
+      contents: `${instruction}\n\nThe seeker asks: "${question}"\n\nRespond as the Universal Oracle:`,
+    });
+    return response.text;
+  } catch (error) {
+    console.error("Error getting oracle response:", error);
+    return "The cosmic frequencies are disrupted. The Oracle cannot reach through the veil at this moment. Please try again.";
+  }
+};
+
+/**
  * Decodes a symbolic image by generating a textual interpretation.
  * @param imageFile The image file to interpret.
  * @returns A string with the model's interpretation.

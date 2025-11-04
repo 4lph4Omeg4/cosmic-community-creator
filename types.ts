@@ -6,7 +6,7 @@ export interface ChatMessage {
   text: string;
 }
 
-export type ActiveChamber = 'none' | 'vision-weaver' | 'celestial-forge' | 'stellar-animator';
+export type ActiveChamber = 'none' | 'vision-weaver' | 'celestial-forge' | 'stellar-animator' | 'universal-oracle';
 
 export interface StarSystem {
   id: string;
