@@ -52,75 +52,72 @@ async function getAllImages(limit: number = 20): Promise<GalleryItem[]> {
 
         const allImages: GalleryItem[] = [];
 
-        // For each user folder, get images
-        for (const userFolder of folders) {
-            if (!userFolder.name || userFolder.name.includes('.')) continue;
+        // Get the first valid user folder
+        const userFolder = folders.find(f => f.name && !f.name.includes('.'));
+        
+        if (!userFolder || !userFolder.name) {
+            console.log('No valid user folder found');
+            return [];
+        }
 
-            console.log(`Checking user folder: ${userFolder.name}`);
+        console.log(`Using user folder: ${userFolder.name}`);
 
-            const { data: starFolders, error: starError } = await supabase.storage
+        // Get all star folders for this user
+        const { data: starFolders, error: starError } = await supabase.storage
+            .from(IMAGES_BUCKET)
+            .list(userFolder.name, {
+                limit: 100,
+            });
+
+        if (starError) {
+            console.error(`Error listing star folders:`, starError);
+            return [];
+        }
+
+        if (!starFolders || starFolders.length === 0) {
+            console.log(`No star folders found in ${userFolder.name}`);
+            return [];
+        }
+
+        console.log(`Found ${starFolders.length} star folders`);
+
+        // Get images from all star folders
+        for (const starFolder of starFolders) {
+            if (!starFolder.name || starFolder.name.includes('.')) continue;
+
+            const { data: files, error: filesError } = await supabase.storage
                 .from(IMAGES_BUCKET)
-                .list(userFolder.name, {
+                .list(`${userFolder.name}/${starFolder.name}`, {
                     limit: 100,
+                    sortBy: { column: 'created_at', order: 'desc' },
                 });
 
-            if (starError) {
-                console.error(`Error listing star folders for ${userFolder.name}:`, starError);
+            if (filesError) {
+                console.error(`Error listing files for ${starFolder.name}:`, filesError);
                 continue;
             }
 
-            if (!starFolders || starFolders.length === 0) {
-                console.log(`No star folders found in ${userFolder.name}`);
+            if (!files || files.length === 0) {
                 continue;
             }
 
-            console.log(`Found ${starFolders.length} star folders in ${userFolder.name}`);
+            console.log(`Found ${files.length} files in ${starFolder.name}`);
 
-            for (const starFolder of starFolders) {
-                if (!starFolder.name || starFolder.name.includes('.')) continue;
+            for (const file of files) {
+                if (file.name && !file.name.endsWith('/') && file.name.match(/\.(jpg|jpeg|png|webp|gif)$/i)) {
+                    const filePath = `${userFolder.name}/${starFolder.name}/${file.name}`;
+                    const { data: urlData } = supabase.storage
+                        .from(IMAGES_BUCKET)
+                        .getPublicUrl(filePath);
 
-                console.log(`Checking star folder: ${userFolder.name}/${starFolder.name}`);
-
-                const { data: files, error: filesError } = await supabase.storage
-                    .from(IMAGES_BUCKET)
-                    .list(`${userFolder.name}/${starFolder.name}`, {
-                        limit: 10,
-                        sortBy: { column: 'created_at', order: 'desc' },
-                    });
-
-                if (filesError) {
-                    console.error(`Error listing files for ${userFolder.name}/${starFolder.name}:`, filesError);
-                    continue;
-                }
-
-                if (!files || files.length === 0) {
-                    console.log(`No files found in ${userFolder.name}/${starFolder.name}`);
-                    continue;
-                }
-
-                console.log(`Found ${files.length} files in ${userFolder.name}/${starFolder.name}`);
-
-                for (const file of files) {
-                    console.log(`Processing file: ${file.name}, is folder: ${file.name?.endsWith('/')}`);
-                    if (file.name && !file.name.endsWith('/') && file.name.match(/\.(jpg|jpeg|png|webp|gif)$/i)) {
-                        const filePath = `${userFolder.name}/${starFolder.name}/${file.name}`;
-                        const { data: urlData } = supabase.storage
-                            .from(IMAGES_BUCKET)
-                            .getPublicUrl(filePath);
-
-                        console.log(`Generated URL for ${filePath}:`, urlData?.publicUrl);
-
-                        if (urlData?.publicUrl) {
-                            allImages.push({
-                                url: urlData.publicUrl,
-                                type: 'image',
-                                userId: userFolder.name,
-                                starId: starFolder.name,
-                                createdAt: file.created_at || file.updated_at || new Date().toISOString(),
-                            });
-                        }
-                    } else {
-                        console.log(`File ${file.name} skipped - not matching image pattern or is folder`);
+                    if (urlData?.publicUrl) {
+                        allImages.push({
+                            url: urlData.publicUrl,
+                            type: 'image',
+                            userId: userFolder.name,
+                            starId: starFolder.name,
+                            createdAt: file.created_at || file.updated_at || new Date().toISOString(),
+                        });
                     }
                 }
             }
@@ -181,75 +178,72 @@ async function getAllVideos(limit: number = 10): Promise<GalleryItem[]> {
 
         const allVideos: GalleryItem[] = [];
 
-        // For each user folder, get videos
-        for (const userFolder of folders) {
-            if (!userFolder.name || userFolder.name.includes('.')) continue;
+        // Get the first valid user folder
+        const userFolder = folders.find(f => f.name && !f.name.includes('.'));
+        
+        if (!userFolder || !userFolder.name) {
+            console.log('No valid user folder found (videos)');
+            return [];
+        }
 
-            console.log(`Checking user folder (videos): ${userFolder.name}`);
+        console.log(`Using user folder (videos): ${userFolder.name}`);
 
-            const { data: starFolders, error: starError } = await supabase.storage
+        // Get all star folders for this user
+        const { data: starFolders, error: starError } = await supabase.storage
+            .from(VIDEOS_BUCKET)
+            .list(userFolder.name, {
+                limit: 100,
+            });
+
+        if (starError) {
+            console.error(`Error listing star folders (videos):`, starError);
+            return [];
+        }
+
+        if (!starFolders || starFolders.length === 0) {
+            console.log(`No star folders found (videos)`);
+            return [];
+        }
+
+        console.log(`Found ${starFolders.length} star folders (videos)`);
+
+        // Get videos from all star folders
+        for (const starFolder of starFolders) {
+            if (!starFolder.name || starFolder.name.includes('.')) continue;
+
+            const { data: files, error: filesError } = await supabase.storage
                 .from(VIDEOS_BUCKET)
-                .list(userFolder.name, {
+                .list(`${userFolder.name}/${starFolder.name}`, {
                     limit: 100,
+                    sortBy: { column: 'created_at', order: 'desc' },
                 });
 
-            if (starError) {
-                console.error(`Error listing star folders for ${userFolder.name}:`, starError);
+            if (filesError) {
+                console.error(`Error listing files for ${starFolder.name} (videos):`, filesError);
                 continue;
             }
 
-            if (!starFolders || starFolders.length === 0) {
-                console.log(`No star folders found in ${userFolder.name} (videos)`);
+            if (!files || files.length === 0) {
                 continue;
             }
 
-            console.log(`Found ${starFolders.length} star folders in ${userFolder.name} (videos)`);
+            console.log(`Found ${files.length} files in ${starFolder.name} (videos)`);
 
-            for (const starFolder of starFolders) {
-                if (!starFolder.name || starFolder.name.includes('.')) continue;
+            for (const file of files) {
+                if (file.name && !file.name.endsWith('/') && file.name.match(/\.(mp4|webm|mov)$/i)) {
+                    const filePath = `${userFolder.name}/${starFolder.name}/${file.name}`;
+                    const { data: urlData } = supabase.storage
+                        .from(VIDEOS_BUCKET)
+                        .getPublicUrl(filePath);
 
-                console.log(`Checking star folder (videos): ${userFolder.name}/${starFolder.name}`);
-
-                const { data: files, error: filesError } = await supabase.storage
-                    .from(VIDEOS_BUCKET)
-                    .list(`${userFolder.name}/${starFolder.name}`, {
-                        limit: 5,
-                        sortBy: { column: 'created_at', order: 'desc' },
-                    });
-
-                if (filesError) {
-                    console.error(`Error listing files for ${userFolder.name}/${starFolder.name}:`, filesError);
-                    continue;
-                }
-
-                if (!files || files.length === 0) {
-                    console.log(`No files found in ${userFolder.name}/${starFolder.name} (videos)`);
-                    continue;
-                }
-
-                console.log(`Found ${files.length} files in ${userFolder.name}/${starFolder.name} (videos)`);
-
-                for (const file of files) {
-                    console.log(`Processing video file: ${file.name}, is folder: ${file.name?.endsWith('/')}`);
-                    if (file.name && !file.name.endsWith('/') && file.name.match(/\.(mp4|webm|mov)$/i)) {
-                        const filePath = `${userFolder.name}/${starFolder.name}/${file.name}`;
-                        const { data: urlData } = supabase.storage
-                            .from(VIDEOS_BUCKET)
-                            .getPublicUrl(filePath);
-
-                        console.log(`Generated URL for ${filePath}:`, urlData?.publicUrl);
-
-                        if (urlData?.publicUrl) {
-                            allVideos.push({
-                                url: urlData.publicUrl,
-                                type: 'video',
-                                userId: userFolder.name,
-                                starId: starFolder.name,
-                                createdAt: file.created_at || file.updated_at || new Date().toISOString(),
-                            });
-                        }
-                    } else {
-                        console.log(`File ${file.name} skipped - not matching video pattern or is folder`);
+                    if (urlData?.publicUrl) {
+                        allVideos.push({
+                            url: urlData.publicUrl,
+                            type: 'video',
+                            userId: userFolder.name,
+                            starId: starFolder.name,
+                            createdAt: file.created_at || file.updated_at || new Date().toISOString(),
+                        });
                     }
                 }
             }
