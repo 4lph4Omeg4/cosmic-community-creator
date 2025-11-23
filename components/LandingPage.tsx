@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { galleryService, GalleryItem } from '../services/galleryService';
+import { supabase } from '../services/supabaseClient';
 
 interface LandingPageProps {
-  onLogin: (creatorName: string) => void;
+    onLogin: (creatorName: string) => void;
 }
+
+// TODO: Replace with your actual Stripe Price ID
+const STRIPE_PRICE_ID = 'price_1Qk...';
 
 const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
     const [creatorName, setCreatorName] = useState('');
@@ -13,6 +17,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
     const [galleryVideos, setGalleryVideos] = useState<GalleryItem[]>([]);
     const [isLoadingGallery, setIsLoadingGallery] = useState(true);
     const [hasError, setHasError] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [statusMessage, setStatusMessage] = useState('');
 
     useEffect(() => {
         const loadGallery = async () => {
@@ -34,12 +40,90 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
             }
         };
         loadGallery();
-    }, []);
 
-    const handleSubmit = (e: React.FormEvent) => {
+        // Check for return from Stripe
+        const checkPaymentStatus = async () => {
+            const params = new URLSearchParams(window.location.search);
+            const sessionId = params.get('session_id');
+            const pendingUser = sessionStorage.getItem('pending_creator_name');
+
+            if (sessionId && pendingUser) {
+                setIsProcessing(true);
+                setStatusMessage('Verifying payment...');
+
+                // Poll for payment completion (webhook might take a moment)
+                let attempts = 0;
+                const maxAttempts = 10;
+
+                const pollInterval = setInterval(async () => {
+                    attempts++;
+                    const { data: user } = await supabase
+                        .from('users')
+                        .select('is_paid')
+                        .eq('username', pendingUser)
+                        .single();
+
+                    if (user?.is_paid) {
+                        clearInterval(pollInterval);
+                        sessionStorage.removeItem('pending_creator_name');
+                        // Clear URL params
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                        onLogin(pendingUser);
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(pollInterval);
+                        setIsProcessing(false);
+                        setStatusMessage('Payment verification timed out. Please try logging in again.');
+                    }
+                }, 2000);
+            }
+        };
+        checkPaymentStatus();
+    }, [onLogin]);
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (creatorName.trim()) {
-            onLogin(creatorName.trim());
+        if (!creatorName.trim()) return;
+
+        setIsProcessing(true);
+        setStatusMessage('Checking access...');
+
+        try {
+            // 1. Check if user exists and is paid
+            const { data: user, error } = await supabase
+                .from('users')
+                .select('*')
+                .eq('username', creatorName.trim())
+                .single();
+
+            if (user && user.is_paid) {
+                // User exists and is paid, allow login
+                onLogin(creatorName.trim());
+                return;
+            }
+
+            // 2. If not paid (or doesn't exist), create checkout session
+            setStatusMessage('Redirecting to payment...');
+
+            const { data, error: funcError } = await supabase.functions.invoke('create-checkout-session', {
+                body: {
+                    username: creatorName.trim(),
+                    priceId: STRIPE_PRICE_ID,
+                    origin: window.location.origin
+                }
+            });
+
+            if (funcError) throw funcError;
+            if (data?.url) {
+                sessionStorage.setItem('pending_creator_name', creatorName.trim());
+                window.location.href = data.url;
+            } else {
+                throw new Error('No checkout URL returned');
+            }
+
+        } catch (err) {
+            console.error('Login error:', err);
+            setStatusMessage('An error occurred. Please try again.');
+            setIsProcessing(false);
         }
     };
 
@@ -53,10 +137,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                     transition={{ duration: 1, ease: 'easeOut' }}
                 >
                     <h1 className="font-display text-5xl md:text-7xl font-light tracking-widest uppercase">
-                       Cosmic Community Creator
+                        Cosmic Community Creator
                     </h1>
                     <p className="mt-4 text-lg md:text-xl text-gray-300 font-light tracking-wider">
-                      Compose your own version of the cosmic star nations.
+                        Compose your own version of the cosmic star nations.
                     </p>
                 </motion.div>
 
@@ -74,6 +158,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                         placeholder="Enter Your Creator Name"
                         className="font-display text-lg text-center w-72 bg-transparent border border-gray-400/50 rounded-full px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 transition-all"
                         required
+                        disabled={isProcessing}
                     />
                     <input
                         type="password"
@@ -82,13 +167,18 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                         placeholder="Enter Your Password"
                         className="font-display text-lg text-center w-72 bg-transparent border border-gray-400/50 rounded-full px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 transition-all"
                         required
+                        disabled={isProcessing}
                     />
                     <button
                         type="submit"
-                        className="font-display text-xl px-8 py-3 border border-gray-400 text-gray-200 rounded-full backdrop-blur-sm bg-white/5 hover:bg-white/10 transition-all duration-300 shadow-lg hover:shadow-cyan-500/20"
+                        disabled={isProcessing}
+                        className="font-display text-xl px-8 py-3 border border-gray-400 text-gray-200 rounded-full backdrop-blur-sm bg-white/5 hover:bg-white/10 transition-all duration-300 shadow-lg hover:shadow-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        Enter the Sanctuary
+                        {isProcessing ? 'Processing...' : 'Enter the Sanctuary'}
                     </button>
+                    {statusMessage && (
+                        <p className="text-sm text-cyan-400 mt-2 animate-pulse">{statusMessage}</p>
+                    )}
                 </motion.form>
             </div>
 
@@ -188,7 +278,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
             </div>
 
             {/* Footer */}
-            <motion.p 
+            <motion.p
                 className="text-center text-xs text-gray-500 max-w-lg mx-auto px-4 pb-8"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
