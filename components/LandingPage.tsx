@@ -8,7 +8,7 @@ interface LandingPageProps {
 }
 
 // TODO: Replace with your actual Stripe Price ID
-const STRIPE_PRICE_ID = 'price_1SWRmbAjmFcyjaYZ0Q8TGUmF';
+const STRIPE_PRICE_ID = 'price_1SWTDfAYa3PAyBidHHpGeNqX';
 
 const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
     const [creatorName, setCreatorName] = useState('');
