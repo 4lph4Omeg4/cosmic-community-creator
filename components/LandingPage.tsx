@@ -143,7 +143,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                     try {
                         const response = (funcError as any).context as Response;
                         const errorBody = await response.json();
-                        console.error('Edge Function Error Body:', errorBody);
+                        console.error('Edge Function Error Body:', JSON.stringify(errorBody, null, 2));
                         if (errorBody.error) {
                             errorMessage = errorBody.error;
                         }
