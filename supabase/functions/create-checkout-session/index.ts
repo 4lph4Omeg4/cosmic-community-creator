@@ -65,19 +65,57 @@ serve(async (req) => {
     }
 
     // 3. Create Checkout Session
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
-      mode: 'payment',
-      success_url: `${origin}?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}?canceled=true`,
-      client_reference_id: user.id,
-    })
+    let session
+    try {
+      session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        line_items: [
+          {
+            price: priceId,
+            quantity: 1,
+          },
+        ],
+        mode: 'payment',
+        success_url: `${origin}?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}?canceled=true`,
+        client_reference_id: user.id,
+      })
+    } catch (error) {
+      // If customer doesn't exist in Stripe (e.g. deleted or different env), recreate them
+      if (error.code === 'resource_missing' && error.param === 'customer') {
+        console.log('Stripe customer missing, recreating...')
+        const customer = await stripe.customers.create({
+          metadata: {
+            supabase_user_id: user.id,
+            username: username
+          }
+        })
+        customerId = customer.id
+
+        // Update user with new stripe_customer_id
+        await supabaseClient
+          .from('users')
+          .update({ stripe_customer_id: customerId })
+          .eq('id', user.id)
+
+        // Retry session creation
+        session = await stripe.checkout.sessions.create({
+          customer: customerId,
+          line_items: [
+            {
+              price: priceId,
+              quantity: 1,
+            },
+          ],
+          mode: 'payment',
+          success_url: `${origin}?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${origin}?canceled=true`,
+          client_reference_id: user.id,
+        })
+      } else {
+        throw error
+      }
+    }
 
     return new Response(
       JSON.stringify({ url: session.url }),
