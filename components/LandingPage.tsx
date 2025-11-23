@@ -84,16 +84,19 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
         e.preventDefault();
         if (!creatorName.trim()) return;
 
+        // Normalize username to lowercase to avoid case-sensitivity issues
+        const normalizedCreatorName = creatorName.trim().toLowerCase();
+
         setIsProcessing(true);
         setStatusMessage('Checking access...');
 
         try {
             // 1. Check if user exists and is paid
-            console.log('Checking user status for:', creatorName.trim());
+            console.log('Checking user status for:', normalizedCreatorName);
             const { data: user, error } = await supabase
                 .from('users')
                 .select('*')
-                .eq('username', creatorName.trim())
+                .eq('username', normalizedCreatorName)
                 .maybeSingle();
 
             if (error) {
@@ -108,7 +111,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
             if (user && user.is_paid) {
                 // User exists and is paid, allow login
                 console.log('User is paid, logging in...');
-                onLogin(creatorName.trim());
+                onLogin(normalizedCreatorName);
                 return;
             }
 
@@ -125,7 +128,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
 
             const { data, error: funcError } = await supabase.functions.invoke('create-checkout-session', {
                 body: {
-                    username: creatorName.trim(),
+                    username: normalizedCreatorName,
                     priceId: STRIPE_PRICE_ID,
                     origin: window.location.origin
                 }
@@ -156,7 +159,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
             console.log('Checkout Session Response:', data);
 
             if (data?.url) {
-                sessionStorage.setItem('pending_creator_name', creatorName.trim());
+                sessionStorage.setItem('pending_creator_name', normalizedCreatorName);
                 window.location.href = data.url;
             } else {
                 console.error('No URL in response:', data);
