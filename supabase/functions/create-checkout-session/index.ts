@@ -35,33 +35,33 @@ serve(async (req) => {
 
     let user = users
     if (!user) {
-        // Create user if not exists
-        const { data: newUser, error: createError } = await supabaseClient
-            .from('users')
-            .insert([{ username }])
-            .select()
-            .single()
-        
-        if (createError) throw createError
-        user = newUser
+      // Create user if not exists
+      const { data: newUser, error: createError } = await supabaseClient
+        .from('users')
+        .insert([{ username }])
+        .select()
+        .single()
+
+      if (createError) throw createError
+      user = newUser
     }
 
     // 2. Create or retrieve Stripe Customer
     let customerId = user.stripe_customer_id
     if (!customerId) {
-        const customer = await stripe.customers.create({
-            metadata: {
-                supabase_user_id: user.id,
-                username: username
-            }
-        })
-        customerId = customer.id
-        
-        // Update user with stripe_customer_id
-        await supabaseClient
-            .from('users')
-            .update({ stripe_customer_id: customerId })
-            .eq('id', user.id)
+      const customer = await stripe.customers.create({
+        metadata: {
+          supabase_user_id: user.id,
+          username: username
+        }
+      })
+      customerId = customer.id
+
+      // Update user with stripe_customer_id
+      await supabaseClient
+        .from('users')
+        .update({ stripe_customer_id: customerId })
+        .eq('id', user.id)
     }
 
     // 3. Create Checkout Session
@@ -87,8 +87,9 @@ serve(async (req) => {
       },
     )
   } catch (error) {
+    console.error('Edge Function Error:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error.message, stack: error.stack }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
