@@ -10,10 +10,13 @@
   },
   "dependencies": {
     "@google/genai": "^1.28.0",
+    "@stripe/stripe-js": "^8.5.2",
     "@supabase/supabase-js": "^2.78.0",
     "framer-motion": "^12.23.24",
+    "next": "^16.0.3",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "stripe": "^20.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
