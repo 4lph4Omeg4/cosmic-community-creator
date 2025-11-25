@@ -91,7 +91,7 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
             try {
                 const updatedSystems = await Promise.all(initialPortalsData.map(async (star) => {
                     const starData: StarSystem = { ...star };
-                    
+
                     // Load images from Supabase
                     try {
                         const imageUrls = await imageStorage.getImage(user, star.id);
@@ -103,7 +103,7 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
                     } catch (err) {
                         console.error('Error loading images from Supabase for star', star.id, ':', err);
                     }
-                    
+
                     // Load video from Supabase
                     try {
                         const videoUrl = await videoStorage.getVideo(user, star.id);
@@ -114,10 +114,10 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
                     } catch (err) {
                         console.error('Error loading video from Supabase for star', star.id, ':', err);
                     }
-                    
+
                     return starData;
                 }));
-                
+
                 setStarSystems(updatedSystems);
             } catch (err) {
                 console.error('Error loading data from Supabase:', err);
@@ -125,7 +125,7 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
                 setStarSystems(initialPortalsData);
             }
         };
-        
+
         loadData();
     }, [user]);
 
@@ -154,7 +154,7 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
             setChamberInitialPrompt('');
         }
     };
-    
+
     const handleCloseChamber = () => {
         setActiveChamber('none');
         // Keep contextStar in case we need to link media after closing
@@ -169,7 +169,7 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
         setChamberInitialPrompt(`A vision of a being from the star system ${star.label}, a place known as "${star.lore}". The being embodies the concepts of: ${star.details}`);
         setActiveChamber('celestial-forge');
     };
-    
+
     const handleAnimateVision = (star: StarSystem) => {
         console.log('Animating vision for star:', star.id, star.label);
         setContextStar(star);
@@ -179,26 +179,26 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
 
     const handleLinkImageToStar = async (newImage: string) => {
         console.log('handleLinkImageToStar called with image length:', newImage.length);
-        
+
         // Try multiple sources to find the target star
         let targetStar = contextStar || selectedStar;
-        
+
         // If still no star, try to find it by ID from ref
         if (!targetStar && contextStarIdRef.current) {
             targetStar = starSystems.find(s => s.id === contextStarIdRef.current) || null;
         }
-        
+
         if (targetStar) {
             console.log('Linking image to star:', targetStar.id, targetStar.label);
-            
+
             try {
                 // Upload image to Supabase Storage
                 const imageUrl = await imageStorage.saveImage(user, targetStar.id, newImage);
                 console.log('Image uploaded to Supabase:', imageUrl);
-                
+
                 // Reload images from Supabase to get updated list
                 const updatedImageUrls = await imageStorage.getImage(user, targetStar.id);
-                
+
                 // Update the state for immediate UI feedback
                 const updatedSystems = starSystems.map(s => {
                     if (s.id === targetStar.id) {
@@ -239,16 +239,16 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
     const handleLinkVideoToStar = async (videoBlob: Blob) => {
         // Try multiple sources to find the target star
         let targetStar = contextStar || selectedStar;
-        
+
         // If still no star, try to find it by ID from ref
         if (!targetStar && contextStarIdRef.current) {
             targetStar = starSystems.find(s => s.id === contextStarIdRef.current) || null;
         }
-        
+
         if (targetStar) {
             console.log('Linking video to star:', targetStar.id, targetStar.label);
             console.log('Video blob size:', videoBlob.size, 'bytes');
-            
+
             try {
                 // Save video to Supabase Storage
                 const videoUrl = await videoStorage.saveVideo(user, targetStar.id, videoBlob);
@@ -276,7 +276,7 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
 
 
     return (
-        <div className="w-full h-full relative">
+        <div className="w-full min-h-screen relative">
             {/* User Info & Logout */}
             <div className="absolute top-6 left-6 z-30 flex items-center gap-3 text-gray-300 bg-black/20 backdrop-blur-sm p-2 rounded-full">
                 <span className="font-display text-sm">Creator: {user}</span>
@@ -305,7 +305,7 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
                     />
                 )}
             </AnimatePresence>
-            
+
             <AnimatePresence>
                 {activeChamber === 'vision-weaver' && (
                     <VisionWeaver onClose={handleCloseChamber} />
