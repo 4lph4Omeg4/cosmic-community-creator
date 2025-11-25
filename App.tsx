@@ -2,13 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import LandingPage from './components/LandingPage';
 import Sanctuary from './components/Sanctuary';
 import useParticleBackground from './hooks/useParticleBackground';
+import { Analytics } from "@vercel/analytics/next"
 
 const App: React.FC = () => {
     const [user, setUser] = useState<string | null>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     // This is a placeholder. If we wanted modals to pause the background, we'd manage this state here.
-    const isPaused = false; 
+    const isPaused = false;
     useParticleBackground(canvasRef, isPaused);
 
     useEffect(() => {
