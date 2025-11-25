@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { StarSystem, ActiveChamber } from '../types';
-import { SparklesIcon, NebulaIcon, StarIcon, FilmStarIcon, OracleIcon, ImageIcon, VideoIcon } from './Icons';
+import { SparklesIcon, NebulaIcon, StarIcon, FilmStarIcon, OracleIcon, ImageIcon, VideoIcon, LogoutIcon } from './Icons';
 
 type ThemeName = 'pleiaden' | 'arcturus' | 'sirius' | 'lyra' | 'andromeda' | 'orion' | 'zeta-reticuli' | 'polaris';
 
@@ -34,9 +34,11 @@ interface PortalProps {
   setIsStargazing: (isStargazing: boolean) => void;
   onSelectStar: (star: StarSystem) => void;
   onOpenChamber: (chamber: ActiveChamber) => void;
+  user: string;
+  onLogout: () => void;
 }
 
-const Portal: React.FC<PortalProps> = ({ portals, isStargazing, setIsStargazing, onSelectStar, onOpenChamber }) => {
+const Portal: React.FC<PortalProps> = ({ portals, isStargazing, setIsStargazing, onSelectStar, onOpenChamber, user, onLogout }) => {
   const polarisPortal = portals.find(p => p.id === 'polaris');
   const orbitingPortals = portals.filter(p => p.id !== 'polaris');
   const numSystems = orbitingPortals.length;
@@ -71,32 +73,44 @@ const Portal: React.FC<PortalProps> = ({ portals, isStargazing, setIsStargazing,
       transition={{ duration: 1 }}
       className="w-full h-full flex flex-col items-center justify-center p-8 relative"
     >
-      {/* Top Right Controls */}
-      <div className="absolute top-6 right-6 z-30 flex items-center gap-4">
-        <button onClick={() => setIsStargazing(!isStargazing)} className="text-gray-400 hover:text-white transition-colors" title="Stargazing Mode">
-          <StarIcon className="w-7 h-7" fill={isStargazing ? 'currentColor' : 'none'} />
-        </button>
-        <button onClick={() => onOpenChamber('vision-weaver')} className="text-gray-400 hover:text-white transition-colors" title="Vision Weaver">
-          <SparklesIcon className="w-7 h-7" />
-        </button>
-        <button onClick={() => onOpenChamber('celestial-forge')} className="text-gray-400 hover:text-white transition-colors" title="Celestial Forge">
-          <NebulaIcon className="w-7 h-7" />
-        </button>
-        <button onClick={() => onOpenChamber('stellar-animator')} className="text-gray-400 hover:text-white transition-colors" title="Stellar Animator">
-          <FilmStarIcon className="w-7 h-7" />
-        </button>
-        <button onClick={() => onOpenChamber('universal-oracle')} className="text-gray-400 hover:text-white transition-colors" title="Universal Oracle">
-          <OracleIcon className="w-7 h-7" />
-        </button>
-      </div>
+      {/* Centered Header Stack */}
+      <div className="w-full flex flex-col items-center gap-6 mb-12 pt-8 relative z-30 transition-opacity duration-700" style={{ opacity: isStargazing ? 0 : 1 }}>
+        {/* 1. User Info */}
+        <div className="flex items-center gap-3 text-gray-300 bg-black/20 backdrop-blur-sm p-2 rounded-full">
+          <span className="font-display text-sm">Creator: {user}</span>
+          <button onClick={onLogout} title="Logout" className="hover:text-white transition-colors">
+            <LogoutIcon className="w-6 h-6" />
+          </button>
+        </div>
 
-      <div className="text-center mb-20 md:mb-24 transition-opacity duration-700" style={{ opacity: isStargazing ? 0 : 1 }}>
-        <h1 className="font-display text-4xl md:text-5xl text-white font-light tracking-wider">
-          The Sanctuary of Remembrance
-        </h1>
-        <p className="mt-4 max-w-2xl mx-auto text-lg text-gray-300 font-light">
-          Select a star system to explore its frequency.
-        </p>
+        {/* 2. Icons Control Bar */}
+        <div className="flex items-center gap-4">
+          <button onClick={() => setIsStargazing(!isStargazing)} className="text-gray-400 hover:text-white transition-colors" title="Stargazing Mode">
+            <StarIcon className="w-7 h-7" fill={isStargazing ? 'currentColor' : 'none'} />
+          </button>
+          <button onClick={() => onOpenChamber('vision-weaver')} className="text-gray-400 hover:text-white transition-colors" title="Vision Weaver">
+            <SparklesIcon className="w-7 h-7" />
+          </button>
+          <button onClick={() => onOpenChamber('celestial-forge')} className="text-gray-400 hover:text-white transition-colors" title="Celestial Forge">
+            <NebulaIcon className="w-7 h-7" />
+          </button>
+          <button onClick={() => onOpenChamber('stellar-animator')} className="text-gray-400 hover:text-white transition-colors" title="Stellar Animator">
+            <FilmStarIcon className="w-7 h-7" />
+          </button>
+          <button onClick={() => onOpenChamber('universal-oracle')} className="text-gray-400 hover:text-white transition-colors" title="Universal Oracle">
+            <OracleIcon className="w-7 h-7" />
+          </button>
+        </div>
+
+        {/* 3. Title */}
+        <div className="text-center">
+          <h1 className="font-display text-4xl md:text-5xl text-white font-light tracking-wider">
+            The Sanctuary of Remembrance
+          </h1>
+          <p className="mt-4 max-w-2xl mx-auto text-lg text-gray-300 font-light">
+            Select a star system to explore its frequency.
+          </p>
+        </div>
       </div>
 
       <div className="relative w-full max-w-5xl min-h-[500px] flex items-center justify-center">

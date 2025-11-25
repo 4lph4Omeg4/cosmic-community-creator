@@ -277,14 +277,6 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
 
     return (
         <div className="w-full min-h-screen relative">
-            {/* User Info & Logout */}
-            <div className="absolute top-6 left-6 z-30 flex items-center gap-3 text-gray-300 bg-black/20 backdrop-blur-sm p-2 rounded-full">
-                <span className="font-display text-sm">Creator: {user}</span>
-                <button onClick={onLogout} title="Logout" className="hover:text-white transition-colors">
-                    <LogoutIcon className="w-6 h-6" />
-                </button>
-            </div>
-
             <AnimatePresence>
                 {!selectedStar ? (
                     <Portal
@@ -294,6 +286,8 @@ const Sanctuary: React.FC<SanctuaryProps> = ({ user, onLogout }) => {
                         setIsStargazing={setIsStargazing}
                         onSelectStar={handleSelectStar}
                         onOpenChamber={handleOpenChamber}
+                        user={user}
+                        onLogout={onLogout}
                     />
                 ) : (
                     <StarSystemDetail
