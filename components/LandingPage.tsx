@@ -201,7 +201,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                         type="text"
                         value={creatorName}
                         onChange={(e) => setCreatorName(e.target.value)}
-                        placeholder="Enter Your Creator Name"
+                        placeholder="E-mail address"
                         className="font-display text-lg text-center w-72 bg-transparent border border-gray-400/50 rounded-full px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 transition-all"
                         required
                         disabled={isProcessing}
@@ -210,7 +210,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                         type="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Enter Your Password"
+                        placeholder="Password"
                         className="font-display text-lg text-center w-72 bg-transparent border border-gray-400/50 rounded-full px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 transition-all"
                         required
                         disabled={isProcessing}
