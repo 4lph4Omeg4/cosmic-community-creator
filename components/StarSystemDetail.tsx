@@ -26,7 +26,7 @@ const StarSystemDetail: React.FC<StarSystemDetailProps> = ({ star, onBack, onGen
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -100 }}
       transition={{ duration: 0.5, ease: "easeInOut" }}
-      className="absolute inset-0 z-20 flex items-center justify-center p-4 md:p-8"
+      className="absolute inset-0 z-40 flex items-center justify-center p-4 md:p-8"
     >
       <div className="w-full h-full max-w-5xl max-h-[90vh] bg-black/50 backdrop-blur-lg border border-gray-500/30 rounded-2xl shadow-2xl flex flex-col md:flex-row overflow-hidden">
         {/* Media Section */}
@@ -37,8 +37,8 @@ const StarSystemDetail: React.FC<StarSystemDetailProps> = ({ star, onBack, onGen
               <button
                 onClick={() => setSelectedView('main')}
                 className={`px-3 py-1 text-xs rounded-full backdrop-blur-sm transition-all ${selectedView === 'main'
-                    ? 'bg-white/20 text-white border border-white/30'
-                    : 'bg-black/30 text-gray-400 border border-gray-600/30'
+                  ? 'bg-white/20 text-white border border-white/30'
+                  : 'bg-black/30 text-gray-400 border border-gray-600/30'
                   }`}
               >
                 Main
@@ -47,8 +47,8 @@ const StarSystemDetail: React.FC<StarSystemDetailProps> = ({ star, onBack, onGen
                 <button
                   onClick={() => setSelectedView('gallery')}
                   className={`px-3 py-1 text-xs rounded-full backdrop-blur-sm transition-all ${selectedView === 'gallery'
-                      ? 'bg-white/20 text-white border border-white/30'
-                      : 'bg-black/30 text-gray-400 border border-gray-600/30'
+                    ? 'bg-white/20 text-white border border-white/30'
+                    : 'bg-black/30 text-gray-400 border border-gray-600/30'
                     }`}
                 >
                   Gallery ({images.length})
@@ -58,8 +58,8 @@ const StarSystemDetail: React.FC<StarSystemDetailProps> = ({ star, onBack, onGen
                 <button
                   onClick={() => setSelectedView('video')}
                   className={`px-3 py-1 text-xs rounded-full backdrop-blur-sm transition-all ${selectedView === 'video'
-                      ? 'bg-white/20 text-white border border-white/30'
-                      : 'bg-black/30 text-gray-400 border border-gray-600/30'
+                    ? 'bg-white/20 text-white border border-white/30'
+                    : 'bg-black/30 text-gray-400 border border-gray-600/30'
                     }`}
                 >
                   Video
@@ -113,8 +113,8 @@ const StarSystemDetail: React.FC<StarSystemDetailProps> = ({ star, onBack, onGen
                       key={idx}
                       onClick={() => setSelectedImageIndex(idx)}
                       className={`flex-shrink-0 w-20 h-20 rounded overflow-hidden border-2 transition-all ${selectedImageIndex === idx
-                          ? 'border-white scale-110'
-                          : 'border-gray-600 opacity-60 hover:opacity-100'
+                        ? 'border-white scale-110'
+                        : 'border-gray-600 opacity-60 hover:opacity-100'
                         }`}
                     >
                       <img src={img} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
