@@ -36,22 +36,20 @@ const StarSystemDetail: React.FC<StarSystemDetailProps> = ({ star, onBack, onGen
             <div className="absolute top-4 left-4 z-30 flex gap-2">
               <button
                 onClick={() => setSelectedView('main')}
-                className={`px-3 py-1 text-xs rounded-full backdrop-blur-sm transition-all ${
-                  selectedView === 'main'
+                className={`px-3 py-1 text-xs rounded-full backdrop-blur-sm transition-all ${selectedView === 'main'
                     ? 'bg-white/20 text-white border border-white/30'
                     : 'bg-black/30 text-gray-400 border border-gray-600/30'
-                }`}
+                  }`}
               >
                 Main
               </button>
               {hasMultipleImages && (
                 <button
                   onClick={() => setSelectedView('gallery')}
-                  className={`px-3 py-1 text-xs rounded-full backdrop-blur-sm transition-all ${
-                    selectedView === 'gallery'
+                  className={`px-3 py-1 text-xs rounded-full backdrop-blur-sm transition-all ${selectedView === 'gallery'
                       ? 'bg-white/20 text-white border border-white/30'
                       : 'bg-black/30 text-gray-400 border border-gray-600/30'
-                  }`}
+                    }`}
                 >
                   Gallery ({images.length})
                 </button>
@@ -59,11 +57,10 @@ const StarSystemDetail: React.FC<StarSystemDetailProps> = ({ star, onBack, onGen
               {hasVideo && (
                 <button
                   onClick={() => setSelectedView('video')}
-                  className={`px-3 py-1 text-xs rounded-full backdrop-blur-sm transition-all ${
-                    selectedView === 'video'
+                  className={`px-3 py-1 text-xs rounded-full backdrop-blur-sm transition-all ${selectedView === 'video'
                       ? 'bg-white/20 text-white border border-white/30'
                       : 'bg-black/30 text-gray-400 border border-gray-600/30'
-                  }`}
+                    }`}
                 >
                   Video
                 </button>
@@ -79,7 +76,7 @@ const StarSystemDetail: React.FC<StarSystemDetailProps> = ({ star, onBack, onGen
                   key={`main-${star.image}`}
                   src={star.image}
                   alt={star.label}
-                  className="absolute inset-0 w-full h-full object-cover"
+                  className="absolute inset-0 w-full h-full object-contain md:object-cover"
                   onError={() => setImageError(true)}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -115,11 +112,10 @@ const StarSystemDetail: React.FC<StarSystemDetailProps> = ({ star, onBack, onGen
                     <button
                       key={idx}
                       onClick={() => setSelectedImageIndex(idx)}
-                      className={`flex-shrink-0 w-20 h-20 rounded overflow-hidden border-2 transition-all ${
-                        selectedImageIndex === idx
+                      className={`flex-shrink-0 w-20 h-20 rounded overflow-hidden border-2 transition-all ${selectedImageIndex === idx
                           ? 'border-white scale-110'
                           : 'border-gray-600 opacity-60 hover:opacity-100'
-                      }`}
+                        }`}
                     >
                       <img src={img} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
                     </button>
@@ -153,13 +149,13 @@ const StarSystemDetail: React.FC<StarSystemDetailProps> = ({ star, onBack, onGen
             <h1 className="font-display text-4xl md:text-5xl text-white font-light">{star.label}</h1>
             <p className="mt-4 text-lg md:text-xl text-gray-300 italic font-display">{star.lore}</p>
           </motion.div>
-          
+
           <div className="w-16 h-px bg-gray-600 my-6"></div>
 
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.5 }} className="flex-grow">
             <p className="text-gray-200 leading-relaxed font-light whitespace-pre-wrap">{star.details}</p>
           </motion.div>
-          
+
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6, duration: 0.5 }} className="mt-6 flex-shrink-0 flex flex-wrap items-center gap-4">
             <button
               onClick={onBack}
@@ -173,7 +169,7 @@ const StarSystemDetail: React.FC<StarSystemDetailProps> = ({ star, onBack, onGen
             >
               Channel Vision
             </button>
-             <button
+            <button
               onClick={() => onAnimateVision(star)}
               className="font-display text-lg px-6 py-2 border border-teal-400 text-teal-200 rounded-full backdrop-blur-sm bg-teal-500/10 hover:bg-teal-500/20 transition-all duration-300"
             >
