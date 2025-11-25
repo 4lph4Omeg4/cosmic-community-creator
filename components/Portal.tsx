@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { StarSystem, ActiveChamber } from '../types';
-import { SparklesIcon, NebulaIcon, StarIcon, FilmStarIcon, OracleIcon } from './Icons';
+import { SparklesIcon, NebulaIcon, StarIcon, FilmStarIcon, OracleIcon, ImageIcon, VideoIcon } from './Icons';
 
 type ThemeName = 'pleiaden' | 'arcturus' | 'sirius' | 'lyra' | 'andromeda' | 'orion' | 'zeta-reticuli' | 'polaris';
 
@@ -132,10 +132,14 @@ const Portal: React.FC<PortalProps> = ({ portals, isStargazing, setIsStargazing,
                   <div className="absolute inset-2 rounded-full bg-gradient-radial from-white/80 to-transparent blur-sm"></div>
                   <div className="absolute w-4 h-4 bg-white rounded-full blur-md"></div>
                 </div>
-                <div className="mt-4 text-center h-10 flex items-center">
+                <div className="mt-4 text-center h-10 flex flex-col items-center justify-center">
                   <span className={`text-sm text-center text-gray-300 font-display transition-all duration-300 ${isStargazing ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}>
                     {star.label}
                   </span>
+                  <div className={`flex gap-2 mt-1 transition-all duration-300 ${isStargazing ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}>
+                    <ImageIcon className={`w-3 h-3 ${star.images && star.images.length > 0 ? 'text-green-400' : 'text-red-400'}`} />
+                    <VideoIcon className={`w-3 h-3 ${star.video ? 'text-green-400' : 'text-red-400'}`} />
+                  </div>
                 </div>
               </button>
             </motion.div>
@@ -160,10 +164,14 @@ const Portal: React.FC<PortalProps> = ({ portals, isStargazing, setIsStargazing,
                 <div className="absolute inset-3 rounded-full bg-gradient-radial from-white/90 to-transparent blur-md"></div>
                 <div className="absolute w-6 h-6 bg-white rounded-full blur-lg"></div>
               </div>
-              <div className="mt-4 text-center h-10 flex items-center">
+              <div className="mt-4 text-center h-10 flex flex-col items-center justify-center">
                 <span className={`text-sm text-center text-gray-300 font-display transition-all duration-300 ${isStargazing ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}>
                   {polarisPortal.label}
                 </span>
+                <div className={`flex gap-2 mt-1 transition-all duration-300 ${isStargazing ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}>
+                  <ImageIcon className={`w-3 h-3 ${polarisPortal.images && polarisPortal.images.length > 0 ? 'text-green-400' : 'text-red-400'}`} />
+                  <VideoIcon className={`w-3 h-3 ${polarisPortal.video ? 'text-green-400' : 'text-red-400'}`} />
+                </div>
               </div>
             </button>
           </motion.div>
