@@ -31,12 +31,12 @@ const App: React.FC = () => {
     };
 
     return (
-        <main className="w-screen h-screen bg-black overflow-hidden font-sans">
+        <main className="w-full min-h-screen bg-black overflow-x-hidden relative font-sans">
             <canvas
                 ref={canvasRef}
-                className="absolute top-0 left-0 w-full h-full z-0"
+                className="fixed top-0 left-0 w-full h-full z-0 pointer-events-none"
             />
-            <div className="absolute top-0 left-0 w-full h-full z-10">
+            <div className="relative z-10 w-full min-h-screen">
                 {user ? (
                     <Sanctuary user={user} onLogout={handleLogout} />
                 ) : (
