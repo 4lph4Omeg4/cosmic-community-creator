@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { galleryService, GalleryItem } from '../services/galleryService';
 import { supabase } from '../services/supabaseClient';
+import { GoogleIcon } from './Icons';
 
 interface LandingPageProps {
     onLogin: (creatorName: string) => void;
@@ -78,6 +79,20 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
             }
         };
         checkPaymentStatus();
+
+        // Listen for Supabase Auth changes (e.g. Google Sign-In)
+        const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_IN' && session?.user) {
+                console.log('Supabase Auth Event:', event, session.user);
+                // Use email or name from metadata as creator name
+                const name = session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'Cosmic Traveler';
+                onLogin(name);
+            }
+        });
+
+        return () => {
+            authListener.subscription.unsubscribe();
+        };
     }, [onLogin]);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -173,6 +188,24 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
         }
     };
 
+    const handleGoogleLogin = async () => {
+        setIsProcessing(true);
+        setStatusMessage('Redirecting to Google...');
+        try {
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: window.location.origin,
+                },
+            });
+            if (error) throw error;
+        } catch (err) {
+            console.error('Google login error:', err);
+            setStatusMessage('Google login failed. Please try again.');
+            setIsProcessing(false);
+        }
+    };
+
     return (
         <div className="w-full h-full flex flex-col text-white overflow-y-auto">
             {/* Main Content Section */}
@@ -221,6 +254,22 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                         className="font-display text-xl px-8 py-3 border border-gray-400 text-gray-200 rounded-full backdrop-blur-sm bg-white/5 hover:bg-white/10 transition-all duration-300 shadow-lg hover:shadow-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isProcessing ? 'Processing...' : 'Enter the Sanctuary'}
+                    </button>
+
+                    <div className="flex items-center gap-4 w-full max-w-xs my-2">
+                        <div className="h-px bg-gray-600 flex-1"></div>
+                        <span className="text-gray-400 text-sm">OR</span>
+                        <div className="h-px bg-gray-600 flex-1"></div>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={handleGoogleLogin}
+                        disabled={isProcessing}
+                        className="font-display text-lg px-6 py-2 border border-gray-500 text-gray-300 rounded-full backdrop-blur-sm bg-white/5 hover:bg-white/10 transition-all duration-300 shadow-lg hover:shadow-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3"
+                    >
+                        <GoogleIcon className="w-5 h-5" />
+                        <span>Sign in with Google</span>
                     </button>
                     {statusMessage && (
                         <p className="text-sm text-cyan-400 mt-2 animate-pulse">{statusMessage}</p>
