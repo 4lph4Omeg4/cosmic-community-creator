@@ -21,6 +21,93 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [statusMessage, setStatusMessage] = useState('');
 
+    const checkUserAccess = async (username: string) => {
+        setIsProcessing(true);
+        setStatusMessage('Checking access...');
+
+        try {
+            // 1. Check if user exists and is paid
+            console.log('Checking user status for:', username);
+            const { data: user, error } = await supabase
+                .from('users')
+                .select('*')
+                .eq('username', username)
+                .maybeSingle();
+
+            if (error) {
+                console.error('Supabase DB Error:', error);
+                if (error.code === '406') {
+                    alert('Database error: The "users" table might be missing. Did you run "supabase db push"?');
+                    setIsProcessing(false);
+                    return;
+                }
+            }
+
+            if (user && user.is_paid) {
+                // User exists and is paid, allow login
+                console.log('User is paid, logging in...');
+                onLogin(username);
+                return;
+            }
+
+            // Check if Price ID is configured
+            if (STRIPE_PRICE_ID.includes('price_1Qk...')) {
+                alert('Configuration Error: Please set a valid STRIPE_PRICE_ID in components/LandingPage.tsx');
+                setIsProcessing(false);
+                return;
+            }
+
+            // 2. If not paid (or doesn't exist), create checkout session
+            setStatusMessage('Redirecting to payment...');
+            console.log('Invoking create-checkout-session...');
+
+            const { data, error: funcError } = await supabase.functions.invoke('create-checkout-session', {
+                body: {
+                    username: username,
+                    priceId: STRIPE_PRICE_ID,
+                    origin: window.location.origin
+                }
+            });
+
+            if (funcError) {
+                console.error('Edge Function Error:', funcError);
+
+                let errorMessage = funcError.message;
+                // Try to extract detailed error from response body
+                if (funcError && typeof funcError === 'object' && 'context' in funcError) {
+                    try {
+                        const response = (funcError as any).context as Response;
+                        const errorBody = await response.json();
+                        console.error('Edge Function Error Body:', JSON.stringify(errorBody, null, 2));
+                        if (errorBody.error) {
+                            errorMessage = errorBody.error;
+                        }
+                    } catch (e) {
+                        console.warn('Could not parse error response body', e);
+                    }
+                }
+
+                alert(`Payment initialization failed: ${errorMessage}`);
+                throw funcError;
+            }
+
+            console.log('Checkout Session Response:', data);
+
+            if (data?.url) {
+                sessionStorage.setItem('pending_creator_name', username);
+                window.location.href = data.url;
+            } else {
+                console.error('No URL in response:', data);
+                throw new Error('No checkout URL returned from payment service');
+            }
+
+        } catch (err) {
+            console.error('Login error:', err);
+            setStatusMessage('An error occurred. Please try again.');
+            setIsProcessing(false);
+        }
+    };
+
     useEffect(() => {
         const loadGallery = async () => {
             setIsLoadingGallery(true);
@@ -84,9 +171,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
         const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
             if (event === 'SIGNED_IN' && session?.user) {
                 console.log('Supabase Auth Event:', event, session.user);
-                // Use email or name from metadata as creator name
-                const name = session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'Cosmic Traveler';
-                onLogin(name);
+                // Use email as the unique identifier for payment check
+                const email = session.user.email;
+                if (email) {
+                    checkUserAccess(email);
+                } else {
+                    console.error('No email found in session');
+                    setStatusMessage('Could not verify email. Please try again.');
+                }
             }
         });
 
@@ -102,90 +194,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
         // Normalize username to lowercase to avoid case-sensitivity issues
         const normalizedCreatorName = creatorName.trim().toLowerCase();
 
-        setIsProcessing(true);
-        setStatusMessage('Checking access...');
-
-        try {
-            // 1. Check if user exists and is paid
-            console.log('Checking user status for:', normalizedCreatorName);
-            const { data: user, error } = await supabase
-                .from('users')
-                .select('*')
-                .eq('username', normalizedCreatorName)
-                .maybeSingle();
-
-            if (error) {
-                console.error('Supabase DB Error:', error);
-                if (error.code === '406') {
-                    alert('Database error: The "users" table might be missing. Did you run "supabase db push"?');
-                    setIsProcessing(false);
-                    return;
-                }
-            }
-
-            if (user && user.is_paid) {
-                // User exists and is paid, allow login
-                console.log('User is paid, logging in...');
-                onLogin(normalizedCreatorName);
-                return;
-            }
-
-            // Check if Price ID is configured
-            if (STRIPE_PRICE_ID.includes('price_1Qk...')) {
-                alert('Configuration Error: Please set a valid STRIPE_PRICE_ID in components/LandingPage.tsx');
-                setIsProcessing(false);
-                return;
-            }
-
-            // 2. If not paid (or doesn't exist), create checkout session
-            setStatusMessage('Redirecting to payment...');
-            console.log('Invoking create-checkout-session...');
-
-            const { data, error: funcError } = await supabase.functions.invoke('create-checkout-session', {
-                body: {
-                    username: normalizedCreatorName,
-                    priceId: STRIPE_PRICE_ID,
-                    origin: window.location.origin
-                }
-            });
-
-            if (funcError) {
-                console.error('Edge Function Error:', funcError);
-
-                let errorMessage = funcError.message;
-                // Try to extract detailed error from response body
-                if (funcError && typeof funcError === 'object' && 'context' in funcError) {
-                    try {
-                        const response = (funcError as any).context as Response;
-                        const errorBody = await response.json();
-                        console.error('Edge Function Error Body:', JSON.stringify(errorBody, null, 2));
-                        if (errorBody.error) {
-                            errorMessage = errorBody.error;
-                        }
-                    } catch (e) {
-                        console.warn('Could not parse error response body', e);
-                    }
-                }
-
-                alert(`Payment initialization failed: ${errorMessage}`);
-                throw funcError;
-            }
-
-            console.log('Checkout Session Response:', data);
-
-            if (data?.url) {
-                sessionStorage.setItem('pending_creator_name', normalizedCreatorName);
-                window.location.href = data.url;
-            } else {
-                console.error('No URL in response:', data);
-                throw new Error('No checkout URL returned from payment service');
-            }
-
-        } catch (err) {
-            console.error('Login error:', err);
-            setStatusMessage('An error occurred. Please try again.');
-            setIsProcessing(false);
-        }
+        await checkUserAccess(normalizedCreatorName);
     };
 
     const handleGoogleLogin = async () => {
