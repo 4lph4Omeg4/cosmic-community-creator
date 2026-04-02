@@ -223,7 +223,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                     initial={{ opacity: 0, y: -30 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 1, ease: 'easeOut' }}
+                    className="flex flex-col items-center"
                 >
+                    <img src="/logo.jpg" alt="Cosmic Community Creator Logo" className="w-32 h-32 md:w-48 md:h-48 mb-6 object-contain rounded-full shadow-lg shadow-cyan-500/20" />
                     <h1 className="font-display text-5xl md:text-7xl font-light tracking-widest uppercase">
                         Cosmic Community Creator
                     </h1>
